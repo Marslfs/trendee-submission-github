@@ -1,0 +1,79 @@
+{
+    "meta": {
+        "start_date": "2024-01-20",
+        "end_date": "2024-01-26",
+        "platforms": [
+            "app",
+            "marketplace",
+            "website"
+        ],
+        "include_gray_zone": true,
+        "agg_coverage": {
+            "rows": 111,
+            "min_date": "2024-01-01",
+            "max_date": "2024-03-13"
+        },
+        "timezone": "Asia/Shanghai",
+        "cached": false,
+        "cache": {
+            "entries": 1,
+            "maxsize": 1024,
+            "ttl": 60
+        }
+    },
+    "count": 6,
+    "data": [
+        {
+            "date": "2024-01-20",
+            "total_sales": 17,
+            "records": 1,
+            "by_platform": {
+                "website": 17
+            }
+        },
+        {
+            "date": "2024-01-21",
+            "total_sales": 8,
+            "records": 1,
+            "by_platform": {
+                "app": 8
+            }
+        },
+        {
+            "date": "2024-01-23",
+            "total_sales": 12,
+            "records": 2,
+            "by_platform": {
+                "app": 9,
+                "marketplace": 3
+            }
+        },
+        {
+            "date": "2024-01-24",
+            "total_sales": 39,
+            "records": 3,
+            "by_platform": {
+                "app": 6,
+                "website": 33
+            }
+        },
+        {
+            "date": "2024-01-25",
+            "total_sales": 18,
+            "records": 3,
+            "by_platform": {
+                "app": 13,
+                "marketplace": 4,
+                "website": 1
+            }
+        },
+        {
+            "date": "2024-01-26",
+            "total_sales": 16,
+            "records": 1,
+            "by_platform": {
+                "website": 16
+            }
+        }
+    ]
+}

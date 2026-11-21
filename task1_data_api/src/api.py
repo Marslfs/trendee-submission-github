@@ -76,7 +76,9 @@ def sales_trend(
         "p": sorted(platforms_list), "g": include_gray_zone,
     })
     if key in _cache:
-        return {**_cache[key], "meta": {**_cache[key]["meta"], "cached": True}}
+        hit = _cache[key]
+        # 命中时 cache 统计需重取：否则返回的是首次构建时冻结的快照（entries 恒为 0）
+        return {**hit, "meta": {**hit["meta"], "cached": True, "cache": cache_stats()}}
 
     con = _connect()
     try:

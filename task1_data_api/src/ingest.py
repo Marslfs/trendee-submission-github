@@ -49,15 +49,18 @@ def build_rows(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     utc_list, local_list, hash_list = [], [], []
     for rec in df.itertuples(index=False):
         dt_utc, dt_local = convert(rec.timestamp.to_pydatetime())
-        utc_list.append(dt_utc)
-        local_list.append(dt_local)
+        # DuckDB binding 会把 aware datetime 按本机会话时区(+8)换算后剥掉 tz 存入
+        # TIMESTAMP 列，导致 dt_utc/dt_local 坍缩成同一值——入库前显式剥 tz，
+        # 各自保留自己的墙钟（dt_utc=UTC 墙钟，dt_local=Shanghai 墙钟）。
+        utc_list.append(dt_utc.replace(tzinfo=None))
+        local_list.append(dt_local.replace(tzinfo=None))
         hash_list.append(
             row_hash(
                 {
                     "product_id": rec.product_id,
                     "title_norm": rec.title_norm,
                     "sales_count": rec.sales_count,
-                    "dt_utc": dt_utc.isoformat(),
+                    "dt_utc": dt_utc.replace(tzinfo=None).isoformat(),
                     "user_id": rec.user_id,
                     "category": rec.category,
                     "platform": rec.platform,
