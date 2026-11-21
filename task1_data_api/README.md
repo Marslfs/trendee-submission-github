@@ -38,8 +38,10 @@ sql/       01_dwd_schema（DDL）· 02_dwd_tag（ODS→DIM 打标）
 src/       normalize · timeutil · ingest · dq_checks(并入ingest) · cache · api
 tests/     pytest 17 用例（归一化/时区/API/缓存/错误分支）
 data/      sales.duckdb（摄取产物，不入 git）
-docs/      design.md（含分层关系图）· perf.md · checklist.md
+docs/      design.md（含分层关系图）· perf.md · checklist.md · dq_report.md（质量报告落盘）
+           mapping.xlsx（字段映射 / 归一化规则 / 质量报告，三 Sheet）
            layering-er.svg（分层关系图矢量版：表为节点、SQL 为连线）
+examples/  6 个真实响应快照（trend / gray-on / products / healthz / 400 / 422）
 ```
 
 ## 分层与表的对应
