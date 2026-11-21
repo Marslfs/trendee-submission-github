@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """T2-9 生成：OpenAI 兼容接口，可切模型，超时与重试。
 
-换供应商 = 改 .env 两个变量（base_url / model），代码零改动：
-    OPENAI_API_KEY=sk-xxx          # 任一 OpenAI 兼容服务
-    OPENAI_BASE_URL=https://api.deepseek.com   # 或通义/月之暗面/本地 vLLM
-    OPENAI_MODEL=deepseek-chat
+换供应商 = 改 .env 三个变量（LLM_BASE_URL / LLM_MODEL / LLM_API_KEY），代码零改动：
+    LLM_API_KEY=sk-xxx            # 任一 OpenAI 兼容服务
+    LLM_BASE_URL=https://api.deepseek.com     # 或通义/月之暗面/本地 vLLM
+    LLM_MODEL=deepseek-chat
 
 无 Key 时 get_client() 抛 RuntimeError——pipeline 会走"离线模式"，
 输出检索包与上下文，生成环节留待 Key 注入，链路其他环节全部可验。
@@ -27,15 +27,15 @@ MAX_RETRIES, TIMEOUT = 2, 120
 
 def get_client():
     """返回 (client, model)。缺 Key/依赖时抛 RuntimeError（调用方降级）。"""
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("LLM_API_KEY")
     if not api_key:
-        raise RuntimeError("未配置 OPENAI_API_KEY（.env），生成环节不可用，链路其余环节可离线验证")
+        raise RuntimeError("未配置 LLM_API_KEY（.env），生成环节不可用，链路其余环节可离线验证")
     try:
         from openai import OpenAI
     except ImportError as e:
         raise RuntimeError(f"openai 包未安装：{e}") from e
-    base = os.getenv("OPENAI_BASE_URL") or None
-    model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
+    base = os.getenv("LLM_BASE_URL") or None
+    model = os.getenv("LLM_MODEL") or "gpt-4o-mini"
     return OpenAI(api_key=api_key, base_url=base, timeout=TIMEOUT), model
 
 

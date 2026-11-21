@@ -60,7 +60,7 @@ def run(topic: str, genre: str = "Blog", top_k: int = 20, use_llm_rerank: bool =
         result["mode"] = "offline"
         result["offline_note"] = str(e)
         result["article"] = (
-            f"# [离线模式] 主题：{topic}\n\n生成环节需要 OPENAI_API_KEY（.env）。"
+            f"# [离线模式] 主题：{topic}\n\n生成环节需要 LLM_API_KEY（.env）。"
             f"以下为已构建好的上下文与 Prompt，注入 Key 后重跑本命令即可出文章。\n\n"
             f"## 检索证据（top {len(sources)}）\n\n{context_text}\n\n"
             f"## System Prompt 已就绪\n\n见 prompts/system.md（角色+铁律+输出结构）"
