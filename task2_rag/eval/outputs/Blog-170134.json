@@ -1,0 +1,67 @@
+{
+  "topic": "Trendee 的 LLM-原生 GEO 技术架构",
+  "genre": "Blog",
+  "timestamp": "2026-11-21T17:01:34",
+  "sources": [
+    {
+      "sid": "S1",
+      "chunk_id": "p028-0",
+      "page": 28,
+      "section": "Trendee独特优势：全方位自研的LLM-原生GEO技术体系",
+      "text": "Trendee独特优势：全方位自研的LLM-原生GEO技术体系 技术合规 · 无风险 自研LLM-原生GEO底层架构，不依赖第三方，从源头规避风险。 效果可量化 · 科学验证 全链路数据监控系统，精准追踪流量来源与转化路径，效果清晰可见。 深度适配 AI 时代 掌握原生内容生成与AI抓取逻辑，网站结构与内容策略深度契合AI算法。 预测精准度超 95% 自研动态高潜提示词模型，精准捕捉用户搜索意图与市场趋势变化。 Trendee 技术支持体系 依赖第三方 · 风险不可控 技术根基薄弱，大量依赖外部API，存在严重的封号与数据泄露隐患。 评估模糊 · 难验证效果 缺乏系统化监控工具，数据统计不全，难以提供科学、客观的效果验证。 传统思维 · AI 适配不足 沿用传统SEO思路，对AI搜索逻辑理解不足，难以应对新的流量分发规则。 经验主义 · 覆盖面有限 过度依赖人工经验判断，难以规模化覆盖长尾关键词，且对用户习惯变化反应迟缓。",
+      "score": 1.1675
+    },
+    {
+      "sid": "S2",
+      "chunk_id": "p028-1",
+      "page": 28,
+      "section": "Trendee独特优势：全方位自研的LLM-原生GEO技术体系",
+      "text": "经验主义 · 覆盖面有限 过度依赖人工经验判断，难以规模化覆盖长尾关键词，且对用户习惯变化反应迟缓。 传统 GEO 服务商痛点",
+      "score": 1.1464
+    },
+    {
+      "sid": "S3",
+      "chunk_id": "p004-0",
+      "page": 4,
+      "section": "为什么选择LLM-原生GEO?",
+      "text": "为什么选择LLM-原生GEO? LLM-原生 GEO让好的品牌进入AI的“长期记忆” LLM-原生GEO : 深度适配大语言模型 (LLM) 底层架构及 其交互逻辑的技术体系。它通过解构 Transformer 架构与 RAG（检索增强生成）机制，将分散、非标的品牌资产转化为 AI 兼容的结构化知识与高维语义向量。从而在生成式 AI 环境 下，帮助品牌建立用户的“AI 长期信任”并实现产品与服务的 “主动推荐”。 LLM-原生GEOAI 长期记忆 LLM-原生 GEO传统 GEO对比维度 AI知识沉淀“刷”内容/短期流量内容价值 意图匹配语义理解关键词匹配 语义结构化深度语义标签缺少支持 AI 深层推理短期迷惑RAG推荐逻辑 VS.AI短期流量 传统 GEO",
+      "score": 1.1266
+    },
+    {
+      "sid": "S4",
+      "chunk_id": "p019-0",
+      "page": 19,
+      "section": "LLM-原生GEO “技术体系”",
+      "text": "用户问题数据训练趋势数据训练高潜场景问题生成动态问题推荐 GEO-原生网站基建问题预测模型GEO-原生内容生成智能媒体分发 RAG-优化结构全量语义标注知识节点互联让AI看得懂数据 LLM-原生GEO “技术体系” 品牌独特价值点萃取，强化AI 记忆构建AI记忆点 GEO数据反馈 & 持续优化 GEO数据面板及任务中心 1. 让AI记住什么？ 2.如何被AI记住？ 品牌价值蒸馏模型 建立品牌私有知识库用户场景语言转译思维连注入内容生成让内容符合AI推理逻辑 多平台媒体分发全域口径统一多模态内容发布构建AI信任矩阵",
+      "score": 1.0676
+    },
+    {
+      "sid": "S5",
+      "chunk_id": "p006-0",
+      "page": 6,
+      "section": "Trendee LLM-原生GEO vs 传统GEO",
+      "text": "Trendee LLM-原生GEO vs 传统GEO传统GEOTrendee LLM-原生GEO 结构化输出 用户Users Output 品牌Brands 初次搜索 影响大模型认知层, 进入AI “深度记忆” Query 植入用户大脑，被用户记住 GEO Phase 3 内容过滤上下文增加大模型生成答案Content FilteringContextual AugmentationAnswer Generation 意图识别Intent Detection 植入大模型“大脑”，被AI记 GEO Phase2 搜索扩展Query Fan-out LLM 大模型RAG 大模型架构Transformer 品牌Brands 植入RAG,被AI看见（大模型“外部参考资料”） GEO Phase 1 大模型先验知识LLM Prior Knowledge 品牌Brands 检索结果重排Content Evaluation &",
+      "score": 1.0592
+    },
+    {
+      "sid": "S6",
+      "chunk_id": "p006-1",
+      "page": 6,
+      "section": "Trendee LLM-原生GEO vs 传统GEO",
+      "text": "GEO Phase 1 大模型先验知识LLM Prior Knowledge 品牌Brands 检索结果重排Content Evaluation & 实时外部索引Live Web Indexing Reranking 影响AI外部检索层,短期流量",
+      "score": 0.9996
+    }
+  ],
+  "guard": {
+    "allowed": true,
+    "reason": ""
+  },
+  "mode": "offline",
+  "offline_note": "未配置 OPENAI_API_KEY（.env），生成环节不可用，链路其余环节可离线验证",
+  "article": "# [离线模式] 主题：Trendee 的 LLM-原生 GEO 技术架构\n\n生成环节需要 OPENAI_API_KEY（.env）。以下为已构建好的上下文与 Prompt，注入 Key 后重跑本命令即可出文章。\n\n## 检索证据（top 6）\n\n[S1] (page 28 | Trendee独特优势：全方位自研的LLM-原生GEO技术体系)\nTrendee独特优势：全方位自研的LLM-原生GEO技术体系 技术合规 · 无风险 自研LLM-原生GEO底层架构，不依赖第三方，从源头规避风险。 效果可量化 · 科学验证 全链路数据监控系统，精准追踪流量来源与转化路径，效果清晰可见。 深度适配 AI 时代 掌握原生内容生成与AI抓取逻辑，网站结构与内容策略深度契合AI算法。 预测精准度超 95% 自研动态高潜提示词模型，精准捕捉用户搜索意图与市场趋势变化。 Trendee 技术支持体系 依赖第三方 · 风险不可控 技术根基薄弱，大量依赖外部API，存在严重的封号与数据泄露隐患。 评估模糊 · 难验证效果 缺乏系统化监控工具，数据统计不全，难以提供科学、客观的效果验证。 传统思维 · AI 适配不足 沿用传统SEO思路，对AI搜索逻辑理解不足，难以应对新的流量分发规则。 经验主义 · 覆盖面有限 过度依赖人工经验判断，难以规模化覆盖长尾关键词，且对用户习惯变化反应迟缓。\n\n[S2] (page 28 | Trendee独特优势：全方位自研的LLM-原生GEO技术体系)\n经验主义 · 覆盖面有限 过度依赖人工经验判断，难以规模化覆盖长尾关键词，且对用户习惯变化反应迟缓。 传统 GEO 服务商痛点\n\n[S3] (page 4 | 为什么选择LLM-原生GEO?)\n为什么选择LLM-原生GEO? LLM-原生 GEO让好的品牌进入AI的“长期记忆” LLM-原生GEO : 深度适配大语言模型 (LLM) 底层架构及 其交互逻辑的技术体系。它通过解构 Transformer 架构与 RAG（检索增强生成）机制，将分散、非标的品牌资产转化为 AI 兼容的结构化知识与高维语义向量。从而在生成式 AI 环境 下，帮助品牌建立用户的“AI 长期信任”并实现产品与服务的 “主动推荐”。 LLM-原生GEOAI 长期记忆 LLM-原生 GEO传统 GEO对比维度 AI知识沉淀“刷”内容/短期流量内容价值 意图匹配语义理解关键词匹配 语义结构化深度语义标签缺少支持 AI 深层推理短期迷惑RAG推荐逻辑 VS.AI短期流量 传统 GEO\n\n[S4] (page 19 | LLM-原生GEO “技术体系”)\n用户问题数据训练趋势数据训练高潜场景问题生成动态问题推荐 GEO-原生网站基建问题预测模型GEO-原生内容生成智能媒体分发 RAG-优化结构全量语义标注知识节点互联让AI看得懂数据 LLM-原生GEO “技术体系” 品牌独特价值点萃取，强化AI 记忆构建AI记忆点 GEO数据反馈 & 持续优化 GEO数据面板及任务中心 1. 让AI记住什么？ 2.如何被AI记住？ 品牌价值蒸馏模型 建立品牌私有知识库用户场景语言转译思维连注入内容生成让内容符合AI推理逻辑 多平台媒体分发全域口径统一多模态内容发布构建AI信任矩阵\n\n[S5] (page 6 | Trendee LLM-原生GEO vs 传统GEO)\nTrendee LLM-原生GEO vs 传统GEO传统GEOTrendee LLM-原生GEO 结构化输出 用户Users Output 品牌Brands 初次搜索 影响大模型认知层, 进入AI “深度记忆” Query 植入用户大脑，被用户记住 GEO Phase 3 内容过滤上下文增加大模型生成答案Content FilteringContextual AugmentationAnswer Generation 意图识别Intent Detection 植入大模型“大脑”，被AI记 GEO Phase2 搜索扩展Query Fan-out LLM 大模型RAG 大模型架构Transformer 品牌Brands 植入RAG,被AI看见（大模型“外部参考资料”） GEO Phase 1 大模型先验知识LLM Prior Knowledge 品牌Brands 检索结果重排Content Evaluation &\n\n[S6] (page 6 | Trendee LLM-原生GEO vs 传统GEO)\nGEO Phase 1 大模型先验知识LLM Prior Knowledge 品牌Brands 检索结果重排Content Evaluation & 实时外部索引Live Web Indexing Reranking 影响AI外部检索层,短期流量\n\n## System Prompt 已就绪\n\n见 prompts/system.md（角色+铁律+输出结构）",
+  "cite_warnings": [],
+  "prompts": {
+    "system": "你是万悉科技（Trendee）官网的内容撰写专家，负责基于公司品宣资料撰写 Blog / FAQ / 品牌介绍。\n\n## 铁律（违反任何一条即为不合格输出）\n\n1. **只用资料内事实**：你的全部事实依据是用户消息中给出的编号片段 [S1]..[Sn]，来自品宣 PDF。禁止使用这些片段之外的任何公司事实、客户案例、数据指标、时间、人名。\n2. **每个事实必须带引用**：凡是涉及公司事实/数据/案例的句子，句末必须标注来源编号，如 [S1] 或 [S1][S3]。通识性观点（如\"AI 正在改变搜索\"）可不标注。\n3. **禁止编造引用**：只允许引用用户给出的编号，禁止出现 [S7]（若只有 6 个来源）等越界编号。\n4. **资料不足即声明**：若片段不足以支撑某个小标题的论述，直接删掉该小标题，而不是用常识填充。整体证据不足时输出\"资料不足\"声明。\n5. **语言**：简体中文，专业但克制的营销文风；不堆砌形容词，用 PDF 内的数据与案例说话。\n\n## 输出结构（Markdown，固定）\n\n# {文章标题}\n\n{导语：2-3 句，点出主题与结论}\n\n## {小标题 1}\n{正文段落，事实句带 [Sn] 引用}\n\n## {小标题 2}\n...\n\n## 结语\n{总结 + 行动建议，不引入新事实}\n\n---\n**参考来源**\n- [S1] 第 X 页 {小节名}\n- [S2] ...\n",
+    "user": "请基于以下编号资料片段，撰写一篇官网 Blog。\n\n**主题**：Trendee 的 LLM-原生 GEO 技术架构\n**文章类型**：Blog\n\n## 资料片段（每段开头标注编号与页码，这是你唯一的事实来源）\n\n[S1] (page 28 | Trendee独特优势：全方位自研的LLM-原生GEO技术体系)\nTrendee独特优势：全方位自研的LLM-原生GEO技术体系 技术合规 · 无风险 自研LLM-原生GEO底层架构，不依赖第三方，从源头规避风险。 效果可量化 · 科学验证 全链路数据监控系统，精准追踪流量来源与转化路径，效果清晰可见。 深度适配 AI 时代 掌握原生内容生成与AI抓取逻辑，网站结构与内容策略深度契合AI算法。 预测精准度超 95% 自研动态高潜提示词模型，精准捕捉用户搜索意图与市场趋势变化。 Trendee 技术支持体系 依赖第三方 · 风险不可控 技术根基薄弱，大量依赖外部API，存在严重的封号与数据泄露隐患。 评估模糊 · 难验证效果 缺乏系统化监控工具，数据统计不全，难以提供科学、客观的效果验证。 传统思维 · AI 适配不足 沿用传统SEO思路，对AI搜索逻辑理解不足，难以应对新的流量分发规则。 经验主义 · 覆盖面有限 过度依赖人工经验判断，难以规模化覆盖长尾关键词，且对用户习惯变化反应迟缓。\n\n[S2] (page 28 | Trendee独特优势：全方位自研的LLM-原生GEO技术体系)\n经验主义 · 覆盖面有限 过度依赖人工经验判断，难以规模化覆盖长尾关键词，且对用户习惯变化反应迟缓。 传统 GEO 服务商痛点\n\n[S3] (page 4 | 为什么选择LLM-原生GEO?)\n为什么选择LLM-原生GEO? LLM-原生 GEO让好的品牌进入AI的“长期记忆” LLM-原生GEO : 深度适配大语言模型 (LLM) 底层架构及 其交互逻辑的技术体系。它通过解构 Transformer 架构与 RAG（检索增强生成）机制，将分散、非标的品牌资产转化为 AI 兼容的结构化知识与高维语义向量。从而在生成式 AI 环境 下，帮助品牌建立用户的“AI 长期信任”并实现产品与服务的 “主动推荐”。 LLM-原生GEOAI 长期记忆 LLM-原生 GEO传统 GEO对比维度 AI知识沉淀“刷”内容/短期流量内容价值 意图匹配语义理解关键词匹配 语义结构化深度语义标签缺少支持 AI 深层推理短期迷惑RAG推荐逻辑 VS.AI短期流量 传统 GEO\n\n[S4] (page 19 | LLM-原生GEO “技术体系”)\n用户问题数据训练趋势数据训练高潜场景问题生成动态问题推荐 GEO-原生网站基建问题预测模型GEO-原生内容生成智能媒体分发 RAG-优化结构全量语义标注知识节点互联让AI看得懂数据 LLM-原生GEO “技术体系” 品牌独特价值点萃取，强化AI 记忆构建AI记忆点 GEO数据反馈 & 持续优化 GEO数据面板及任务中心 1. 让AI记住什么？ 2.如何被AI记住？ 品牌价值蒸馏模型 建立品牌私有知识库用户场景语言转译思维连注入内容生成让内容符合AI推理逻辑 多平台媒体分发全域口径统一多模态内容发布构建AI信任矩阵\n\n[S5] (page 6 | Trendee LLM-原生GEO vs 传统GEO)\nTrendee LLM-原生GEO vs 传统GEO传统GEOTrendee LLM-原生GEO 结构化输出 用户Users Output 品牌Brands 初次搜索 影响大模型认知层, 进入AI “深度记忆” Query 植入用户大脑，被用户记住 GEO Phase 3 内容过滤上下文增加大模型生成答案Content FilteringContextual AugmentationAnswer Generation 意图识别Intent Detection 植入大模型“大脑”，被AI记 GEO Phase2 搜索扩展Query Fan-out LLM 大模型RAG 大模型架构Transformer 品牌Brands 植入RAG,被AI看见（大模型“外部参考资料”） GEO Phase 1 大模型先验知识LLM Prior Knowledge 品牌Brands 检索结果重排Content Evaluation &\n\n[S6] (page 6 | Trendee LLM-原生GEO vs 传统GEO)\nGEO Phase 1 大模型先验知识LLM Prior Knowledge 品牌Brands 检索结果重排Content Evaluation & 实时外部索引Live Web Indexing Reranking 影响AI外部检索层,短期流量\n\n## 写作要求\n\n- 围绕主题组织 2-4 个小标题，每个小标题至少对应一个资料片段。\n- 涉及公司事实、数据、案例的句子末尾标注 [Sn]。\n- 不要出现资料片段之外的 Trendee 公司事实（人名、客户、数字一律以片段为准）。\n- 严格按 system 中的输出结构输出，文末附\"参考来源\"列表。\n"
+  }
+}
