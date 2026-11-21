@@ -1,0 +1,163 @@
+"""FastAPI：销售趋势查询服务。
+
+路由：
+  GET /api/v1/sales/trend   日销量趋势（start/end/platforms/include_gray_zone）
+  GET /api/v1/products      商品维表（按 tag 过滤）
+  GET /healthz              存活 + DB 可用性探针
+错误处理：pydantic 校验 422；非法参数组合 400；结果空 200 + meta.count=0；
+        DB 文件缺失 503（带修复提示）。
+"""
+from __future__ import annotations
+
+from datetime import date
+from pathlib import Path
+
+import duckdb
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
+
+from .cache import cache_stats, make_key, _cache
+
+ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = ROOT / "data" / "sales.duckdb"
+
+app = FastAPI(
+    title="Task1 Sales Trend API",
+    version="1.0.0",
+    description="maxi dress 日销量趋势查询（DuckDB + 预聚合 + TTL 缓存）",
+)
+
+VALID_PLATFORMS = {"website", "app", "marketplace"}
+MAX_RANGE_DAYS = 366  # 上限防全表扫；生产分区下可放宽
+
+
+def _connect() -> duckdb.DuckDBPyConnection:
+    if not DB_PATH.exists():
+        raise HTTPException(
+            status_code=503,
+            detail=f"数据库不存在：{DB_PATH.name}。请先执行 python -m src.ingest 完成摄取。",
+        )
+    return duckdb.connect(str(DB_PATH), read_only=True)
+
+
+def _validate_range(start: date, end: date, platforms: list[str]) -> None:
+    if start > end:
+        raise HTTPException(status_code=400, detail=f"start_date ({start}) 晚于 end_date ({end})")
+    if (end - start).days > MAX_RANGE_DAYS:
+        raise HTTPException(status_code=400, detail=f"日期范围超过 {MAX_RANGE_DAYS} 天上限")
+    unknown = [p for p in platforms if p not in VALID_PLATFORMS]
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=f"未知平台 {unknown}，可选值：{sorted(VALID_PLATFORMS)}",
+        )
+
+
+@app.get("/api/v1/sales/trend")
+def sales_trend(
+    start_date: date = Query(..., description="起始日（含），Asia/Shanghai 口径"),
+    end_date: date = Query(..., description="结束日（含）"),
+    platforms: str = Query("", description="逗号分隔；空 = 全平台"),
+    include_gray_zone: bool = Query(False, description="是否计入 gray_zone（long dress）"),
+):
+    platforms_list = [p.strip().lower() for p in platforms.split(",") if p.strip()]
+    _validate_range(start_date, end_date, platforms_list)
+    tags = ["core", "gray_zone"] if include_gray_zone else ["core"]
+
+    key = make_key("trend", {
+        "s": str(start_date), "e": str(end_date),
+        "p": sorted(platforms_list), "g": include_gray_zone,
+    })
+    if key in _cache:
+        return {**_cache[key], "meta": {**_cache[key]["meta"], "cached": True}}
+
+    con = _connect()
+    try:
+        sql = """
+        SELECT a.dt_local,
+               SUM(a.total_sales) AS total_sales,
+               SUM(a.record_count) AS records,
+               a.platform
+        FROM agg_sales_daily a
+        WHERE a.tag_status IN (?, ?)
+          AND a.dt_local BETWEEN ? AND ?
+        """
+        params: list = [tags[0], tags[1] if len(tags) > 1 else "", start_date, end_date]
+        if platforms_list:
+            sql += " AND a.platform IN (" + ", ".join(["?"] * len(platforms_list)) + ")"
+            params += platforms_list
+        sql += " GROUP BY 1, 4 ORDER BY 1, 4"
+        rows = con.execute(sql, params).fetchall()
+        meta_row = con.execute(
+            "SELECT COUNT(*), COALESCE(MIN(dt_local)::VARCHAR,''), COALESCE(MAX(dt_local)::VARCHAR,'') "
+            "FROM agg_sales_daily WHERE tag_status IN (?, ?)",
+            [tags[0], tags[1] if len(tags) > 1 else ""],
+        ).fetchone()
+    finally:
+        con.close()
+
+    by_date: dict[str, dict] = {}
+    for dt, total, records, platform in rows:
+        day = by_date.setdefault(str(dt), {"date": str(dt), "total_sales": 0, "records": 0, "by_platform": {}})
+        day["total_sales"] += total
+        day["records"] += records
+        day["by_platform"][platform] = total
+
+    body = {
+        "meta": {
+            "start_date": str(start_date),
+            "end_date": str(end_date),
+            "platforms": platforms_list or sorted(VALID_PLATFORMS),
+            "include_gray_zone": include_gray_zone,
+            "agg_coverage": {"rows": meta_row[0], "min_date": meta_row[1], "max_date": meta_row[2]},
+            "timezone": "Asia/Shanghai",
+            "cached": False,
+            "cache": cache_stats(),
+        },
+        "count": len(by_date),
+        "data": sorted(by_date.values(), key=lambda d: d["date"]),
+    }
+    _cache[key] = body
+    return body
+
+
+@app.get("/api/v1/products")
+def products(
+    tag: str = Query("", description="core / gray_zone / excluded；空 = 全部"),
+):
+    tag = tag.strip().lower()
+    if tag and tag not in {"core", "gray_zone", "excluded"}:
+        raise HTTPException(status_code=400, detail=f"非法 tag={tag}，可选 core/gray_zone/excluded")
+    con = _connect()
+    try:
+        if tag:
+            rows = con.execute(
+                "SELECT product_id, title_norm, category_raw, tag_status, is_gray_zone "
+                "FROM dim_product WHERE tag_status = ? ORDER BY product_id", [tag]
+            ).fetchall()
+        else:
+            rows = con.execute(
+                "SELECT product_id, title_norm, category_raw, tag_status, is_gray_zone "
+                "FROM dim_product ORDER BY product_id"
+            ).fetchall()
+    finally:
+        con.close()
+    return {
+        "count": len(rows),
+        "data": [
+            {"product_id": r[0], "title_norm": r[1], "category": r[2],
+             "tag_status": r[3], "is_gray_zone": r[4]}
+            for r in rows
+        ],
+    }
+
+
+@app.get("/healthz")
+def healthz():
+    try:
+        con = _connect()
+        n = con.execute("SELECT COUNT(*) FROM fact_sales").fetchone()[0]
+        con.close()
+        return {"status": "ok", "fact_sales_rows": n}
+    except HTTPException as exc:
+        return JSONResponse(status_code=503, content={"status": "down", "detail": exc.detail})
