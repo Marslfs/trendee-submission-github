@@ -53,7 +53,14 @@ def _validate_range(start: date, end: date, platforms: list[str]) -> None:
         )
 
 
-@app.get("/api/v1/sales/trend")
+@app.get(
+    "/api/v1/sales/trend",
+    summary="maxi dress 日销量趋势",
+    responses={
+        400: {"description": "参数非法：日期倒序 / 区间超 366 天 / 未知平台"},
+        503: {"description": "数据库未初始化（先跑 python -m src.ingest）"},
+    },
+)
 def sales_trend(
     start_date: date = Query(..., description="起始日（含），Asia/Shanghai 口径"),
     end_date: date = Query(..., description="结束日（含）"),
@@ -121,7 +128,11 @@ def sales_trend(
     return body
 
 
-@app.get("/api/v1/products")
+@app.get(
+    "/api/v1/products",
+    summary="商品维表（按 maxi dress 打标结果过滤）",
+    responses={400: {"description": "非法 tag 取值"}, 503: {"description": "数据库未初始化"}},
+)
 def products(
     tag: str = Query("", description="core / gray_zone / excluded；空 = 全部"),
 ):
