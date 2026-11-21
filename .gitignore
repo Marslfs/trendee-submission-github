@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# 敏感配置
+.env
+
+# 数据库文件
+*.duckdb
+*.duckdb.wal
+
+# 原始材料中的大文件（5MB+ PDF 不入 git，本地保留）
+data_raw/*.pdf
+
+# IDE / 系统
+.idea/
+.vscode/
+Thumbs.db
