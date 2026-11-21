@@ -1,5 +1,48 @@
 # Task 1 设计说明：销售数据查询与 API
 
+> 逐条对照笔试题要求见 [`checklist.md`](./checklist.md)。
+
+## 0. 架构总览
+
+```mermaid
+flowchart LR
+    subgraph ING["① 摄取与治理（离线，可重跑）"]
+        A1["样例销售数据.xlsx<br/>300 行 · 7 字段"]
+        A2["Normalizer<br/>小写 / 去所有格 / 连字符转空格"]
+        A3["Tagger<br/>core / gray_zone / excluded"]
+        A4["Deduper<br/>row_hash 幂等键"]
+        A5["TimeNormalizer<br/>UTC → Asia/Shanghai 双列"]
+        A1 --> A2 --> A3 --> A4 --> A5
+    end
+
+    subgraph STORE["② 存储（DuckDB 列存）"]
+        S1[("dim_product / dim_platform<br/>dim_title_alias")]
+        S2[("fact_sales<br/>明细 · 主键 row_hash")]
+        S3[("agg_sales_daily<br/>日期 × 平台 × 标签")]
+        S4[("dq_report<br/>5 条质量规则结果")]
+    end
+
+    subgraph SERVE["③ 服务（FastAPI）"]
+        P1["/api/v1/sales/trend"]
+        P2["/api/v1/products"]
+        P3["/healthz"]
+        P4["TTL LRU Cache<br/>60s · 1024 条"]
+    end
+
+    A5 --> S2
+    A3 --> S1
+    S2 --> S3
+    S2 --> S4
+    S3 --> P1
+    S1 --> P2
+    S2 --> P3
+    P4 <-.-> P1
+    P1 --> OUT["前端 / BI<br/>JSON"]
+```
+
+数据流一句话：**xlsx → 归一化/打标/去重/时区 → DuckDB 四张表 → FastAPI 只读预聚合表 → JSON**。
+
+
 ## 1. 存储选型
 
 **DuckDB 单文件**。理由：pip 装完即用、列存、原生窗口函数与物化视图语义、SQL 方言与 ClickHouse/PostgreSQL 高度可迁移。
@@ -22,6 +65,11 @@ dq_report         数据质量检查结果，可审计
 - **dt_utc / dt_local 双列**：原始口径与业务口径都保留，聚合只用 `dt_local`。
 - **agg_sales_daily 先于 API 存在**：在线查询不扫明细表；明细表只为补榜/审计。
 - **ingest_batch**：每批摄取可追溯、可回滚。
+
+**索引结构**：
+- `fact_sales.row_hash` 主键 → DuckDB 建 ART 索引，去重 anti-join 为 O(1) 探测；`dim_product.product_id` 同理支撑 JOIN。
+- `agg_sales_daily` 复合主键 `(dt_local, platform, tag_status)` 天然构成「日期前缀」有序扫描路径——趋势查询的 `BETWEEN start AND end` 是范围扫，而不是全表扫。
+- 生产形态（ClickHouse）：`ORDER BY (platform, dt_local)` 让「平台 + 日期区间」同时命中稀疏索引；PG 则对 `(platform, dt_local)` 建 B-tree + `pg_partman` 周分区。
 
 ## 3. "maxi dress" 归一化与识别规则（三段式）
 
