@@ -18,3 +18,4 @@ data_raw/*.pdf
 .idea/
 .vscode/
 Thumbs.db
+.mapping.ref/
