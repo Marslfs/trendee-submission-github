@@ -1,4 +1,9 @@
-"""摄取管道：xlsx → 归一化 → 打标 → 幂等去重 → DuckDB 事实/维表 → 预聚合。
+"""摄取管道：xlsx(ODS) → 归一化 → 打标 → 幂等去重 → DIM/DWD 建表入仓 → DWS 汇总。
+
+分层：
+  DIM  dim_platform / dim_product / dim_title_alias
+  DWD  dwd_fact_sales（幂等明细，行级去重 + 双时区口径）
+  DWS  dws_sales_daily（日期 × 平台 × 标签档位，API 唯一在线数据源）
 
 幂等保证：row_hash 为主键，插入前 anti-join 掉库中已有 hash，重跑不增行。
 审计保证：被过滤的重复行计数写入 dq_report，可回答「销量为什么少了 N 条」。
@@ -17,8 +22,8 @@ from .normalize import CORE, EXCLUDED, GRAY_ZONE, normalize_title, row_hash, tag
 from .timeutil import TZ_NAME_LOCAL, TZ_NAME_UTC, convert
 
 ROOT = Path(__file__).resolve().parent.parent          # task1_data_api/
-SQL_SCHEMA = ROOT / "sql" / "01_schema.sql"
-SQL_AGG = ROOT / "sql" / "03_agg.sql"
+SQL_SCHEMA = ROOT / "sql" / "01_dwd_schema.sql"
+SQL_AGG = ROOT / "sql" / "03_dws_agg.sql"
 DEFAULT_XLSX = ROOT.parent / "data_raw" / "样例销售数据.xlsx"
 
 
@@ -102,7 +107,7 @@ def ingest(xlsx_path: Path, db_path: Path, batch_id: str | None = None) -> dict:
     )
 
     # 幂等核心：文件内先按 row_hash 去重，再 anti-join 掉库中已有 hash
-    existing = {r[0] for r in con.execute("SELECT row_hash FROM fact_sales").fetchall()}
+    existing = {r[0] for r in con.execute("SELECT row_hash FROM dwd_fact_sales").fetchall()}
     unique_rows = fact.drop_duplicates(subset=["row_hash"])
     in_file_dups = len(fact) - len(unique_rows)
     new_rows = unique_rows[~unique_rows["row_hash"].isin(existing)]
@@ -117,7 +122,7 @@ def ingest(xlsx_path: Path, db_path: Path, batch_id: str | None = None) -> dict:
     ]
     if insert_rows:
         con.executemany(
-            "INSERT OR IGNORE INTO fact_sales VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO dwd_fact_sales VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             insert_rows,
         )
 
@@ -130,8 +135,8 @@ def ingest(xlsx_path: Path, db_path: Path, batch_id: str | None = None) -> dict:
         "input_rows": len(fact),
         "duplicate_filtered": dup_count,
         "inserted": len(new_rows),
-        "fact_total": con.execute("SELECT COUNT(*) FROM fact_sales").fetchone()[0],
-        "agg_rows": con.execute("SELECT COUNT(*) FROM agg_sales_daily").fetchone()[0],
+        "fact_total": con.execute("SELECT COUNT(*) FROM dwd_fact_sales").fetchone()[0],
+        "agg_rows": con.execute("SELECT COUNT(*) FROM dws_sales_daily").fetchone()[0],
         "core_rows": con.execute(
             "SELECT COUNT(*) FROM dim_product WHERE tag_status = 'core'"
         ).fetchone()[0],
@@ -153,35 +158,35 @@ def run_dq_checks(con: duckdb.DuckDBPyConnection, fact: pd.DataFrame, batch: str
 
     # 1) 唯一性：row_hash 全库唯一
     n_hash, n_dist = con.execute(
-        "SELECT COUNT(*), COUNT(DISTINCT row_hash) FROM fact_sales"
+        "SELECT COUNT(*), COUNT(DISTINCT row_hash) FROM dwd_fact_sales"
     ).fetchone()
     checks.append(("uniqueness_row_hash", "error",
-                   f"fact_sales rows={n_hash}, distinct hash={n_dist}", n_hash == n_dist))
+                   f"dwd_fact_sales rows={n_hash}, distinct hash={n_dist}", n_hash == n_dist))
 
     # 2) 完整性：核心字段无空值
     nulls = con.execute(
-        "SELECT COUNT(*) FROM fact_sales WHERE product_id IS NULL OR platform IS NULL "
+        "SELECT COUNT(*) FROM dwd_fact_sales WHERE product_id IS NULL OR platform IS NULL "
         "OR sales_count IS NULL OR dt_utc IS NULL"
     ).fetchone()[0]
     checks.append(("completeness_not_null", "error", f"null core fields = {nulls}", nulls == 0))
 
     # 3) 口径一致性：tag_status 只允许三档，且 excluded 不出现在聚合表
     bad_tags = con.execute(
-        "SELECT COUNT(*) FROM agg_sales_daily WHERE tag_status NOT IN ('core','gray_zone')"
+        "SELECT COUNT(*) FROM dws_sales_daily WHERE tag_status NOT IN ('core','gray_zone')"
     ).fetchone()[0]
     checks.append(("tag_glossary_consistency", "error",
                    f"agg rows with illegal tag_status = {bad_tags}", bad_tags == 0))
 
     # 4) 异常值：sales_count 越界（<=0 或 >10_000）
     anomalies = con.execute(
-        "SELECT COUNT(*) FROM fact_sales WHERE sales_count <= 0 OR sales_count > 10000"
+        "SELECT COUNT(*) FROM dwd_fact_sales WHERE sales_count <= 0 OR sales_count > 10000"
     ).fetchone()[0]
     checks.append(("anomaly_sales_range", "warn",
                    f"records with sales_count<=0 or >10000 = {anomalies}", anomalies == 0))
 
     # 5) 及时性/覆盖：事实表时间跨度闭合声明区间
     lo, hi = con.execute(
-        "SELECT MIN(dt_utc), MAX(dt_utc) FROM fact_sales"
+        "SELECT MIN(dt_utc), MAX(dt_utc) FROM dwd_fact_sales"
     ).fetchone()
     checks.append(("timeliness_coverage", "info",
                    f"dt_utc range: {lo} -> {hi}; input duplicates filtered = {dup_count}", True))

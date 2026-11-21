@@ -1,9 +1,9 @@
-"""FastAPI：销售趋势查询服务。
+"""FastAPI：销售趋势查询服务（只读 DWS 层，不建 ADS）。
 
 路由：
-  GET /api/v1/sales/trend   日销量趋势（start/end/platforms/include_gray_zone）
-  GET /api/v1/products      商品维表（按 tag 过滤）
-  GET /healthz              存活 + DB 可用性探针
+  GET /api/v1/sales/trend   日销量趋势（start/end/platforms/include_gray_zone）→ 打 dws_sales_daily
+  GET /api/v1/products      商品维表（按 tag 过滤）                        → 打 dim_product
+  GET /healthz              存活 + DB 可用性探针                           → 打 dwd_fact_sales
 错误处理：pydantic 校验 422；非法参数组合 400；结果空 200 + meta.count=0；
         DB 文件缺失 503（带修复提示）。
 """
@@ -85,7 +85,7 @@ def sales_trend(
                SUM(a.total_sales) AS total_sales,
                SUM(a.record_count) AS records,
                a.platform
-        FROM agg_sales_daily a
+        FROM dws_sales_daily a
         WHERE a.tag_status IN (?, ?)
           AND a.dt_local BETWEEN ? AND ?
         """
@@ -97,7 +97,7 @@ def sales_trend(
         rows = con.execute(sql, params).fetchall()
         meta_row = con.execute(
             "SELECT COUNT(*), COALESCE(MIN(dt_local)::VARCHAR,''), COALESCE(MAX(dt_local)::VARCHAR,'') "
-            "FROM agg_sales_daily WHERE tag_status IN (?, ?)",
+            "FROM dws_sales_daily WHERE tag_status IN (?, ?)",
             [tags[0], tags[1] if len(tags) > 1 else ""],
         ).fetchone()
     finally:
@@ -167,8 +167,8 @@ def products(
 def healthz():
     try:
         con = _connect()
-        n = con.execute("SELECT COUNT(*) FROM fact_sales").fetchone()[0]
+        n = con.execute("SELECT COUNT(*) FROM dwd_fact_sales").fetchone()[0]
         con.close()
-        return {"status": "ok", "fact_sales_rows": n}
+        return {"status": "ok", "dwd_fact_sales_rows": n}
     except HTTPException as exc:
         return JSONResponse(status_code=503, content={"status": "down", "detail": exc.detail})

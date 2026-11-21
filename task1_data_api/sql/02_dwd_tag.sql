@@ -1,5 +1,10 @@
 -- ============================================================
--- 02_tag.sql — maxi dress 打标规则（SQL 版，与 src/normalize.py 交叉验证）
+-- 02_dwd_tag.sql — ODS → DIM 打标加工（DWD 层加工逻辑）
+-- 产出：dim_product.tag_status（core / gray_zone / excluded）
+-- 定位：这不是查询脚本，而是「贴源行 → 维度打标」的加工步骤，
+--       因此归属 DWD 加工层，而不是应用查询层。
+-- 与 src/normalize.py 交叉验证（Python 版为准，本脚本用于 SQL 侧复核）
+--
 -- 三段式判定：
 --   ① core     ：归一化后同时含 maxi 与 dress，且不含 mini/midi
 --   ② excluded ：含 mini 或 midi（长度档位冲突）；或含 maxi 但无 dress（如 maxi skirt）
@@ -21,4 +26,6 @@ SELECT
             THEN 'gray_zone'
         ELSE 'excluded'
     END AS tag_status
-FROM (SELECT DISTINCT product_id, title FROM fact_seed);  -- fact_seed = 摄取前的原始行
+-- ods_sales_seed：贴源层（ODS）临时表，demo 中由 xlsx 直接读入；
+-- 生产形态对应 ods.sales_seed（每日落分区，再由 DWD 加工任务消费）
+FROM (SELECT DISTINCT product_id, title FROM ods_sales_seed);

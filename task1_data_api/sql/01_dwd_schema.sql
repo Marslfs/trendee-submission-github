@@ -1,12 +1,20 @@
 -- ============================================================
--- 01_schema.sql — DuckDB schema（Task 1）
--- 设计口径：本地 demo 用 DuckDB 单文件；schema 按生产形态设计——
+-- 01_dwd_schema.sql — 数仓 DDL（DIM + DWD + DWS 三层）
+--
+-- 【分层归属】
+--   DIM（维度层）  dim_platform / dim_product / dim_title_alias
+--   DWD（明细层）  dwd_fact_sales      一行 = 一次销售记录
+--   DWS（汇总层）  dws_sales_daily     日期 × 平台 × 标签档位的通用日汇总
+--   元数据         dq_report           数据质量审计，不参与业务分层
+--   （本 demo 不建 ADS 层：唯一消费方是 trend API，过滤均为通用筛选，DWS 直查即可）
+--
+-- 【设计口径】本地 demo 用 DuckDB 单文件；schema 按生产形态设计——
 --   迁 ClickHouse：改 DDL 加 ORDER BY (platform, dt_local, tag_status) + 按月分区
---   迁 PostgreSQL：fact_sales 按 dt_local 周分区（pg_partman），agg 表用物化视图
--- 事实表粒度：一行 = 一次销售记录（product × user × 时间点 × 平台）
+--   迁 PostgreSQL：dwd_fact_sales 按 dt_local 周分区（pg_partman），DWS 用物化视图
+--   DWD 粒度：一行 = 一次销售记录（product × user × 时间点 × 平台）
 -- ============================================================
 
--- ---------- 维表 ----------
+-- ---------- DIM 维度层 ----------
 CREATE TABLE IF NOT EXISTS dim_platform (
     platform_name VARCHAR PRIMARY KEY   -- website / app / marketplace
 );
@@ -27,8 +35,8 @@ CREATE TABLE IF NOT EXISTS dim_title_alias (
     PRIMARY KEY (title_norm, product_id)
 );
 
--- ---------- 事实表 ----------
-CREATE TABLE IF NOT EXISTS fact_sales (
+-- ---------- DWD 明细事实层 ----------
+CREATE TABLE IF NOT EXISTS dwd_fact_sales (
     row_hash      VARCHAR PRIMARY KEY,  -- md5(全字段拼接)，幂等去重键
     product_id    INTEGER NOT NULL,
     platform      VARCHAR NOT NULL,
@@ -41,9 +49,10 @@ CREATE TABLE IF NOT EXISTS fact_sales (
     ingest_batch  VARCHAR NOT NULL      -- 摄取批次标识，可审计可回滚
 );
 
--- ---------- 日预聚合表（查询主力，避免在线扫明细） ----------
+-- ---------- DWS 通用汇总层 ----------
 -- 粒度：日期 × 平台 × 标签档位；dt_local 为 Asia/Shanghai 口径
-CREATE TABLE IF NOT EXISTS agg_sales_daily (
+-- 这是「通用汇总」而非「应用专属汇总」：不含任何接口私有口径，因此属于 DWS 而非 ADS
+CREATE TABLE IF NOT EXISTS dws_sales_daily (
     dt_local      DATE      NOT NULL,
     platform      VARCHAR   NOT NULL,
     tag_status    VARCHAR   NOT NULL,   -- core / gray_zone
@@ -52,7 +61,7 @@ CREATE TABLE IF NOT EXISTS agg_sales_daily (
     PRIMARY KEY (dt_local, platform, tag_status)
 );
 
--- ---------- 数据质量报告表 ----------
+-- ---------- 元数据：数据质量报告（不属于 DWD/DIM/DWS 任一层） ----------
 CREATE TABLE IF NOT EXISTS dq_report (
     check_name    VARCHAR NOT NULL,
     severity      VARCHAR NOT NULL,   -- info / warn / error
