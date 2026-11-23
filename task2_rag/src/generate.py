@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""T2-9 生成：OpenAI 兼容接口，可切模型，超时与重试。
+"""T2-10 生成：OpenAI 兼容接口，可切模型，超时与重试。
 
 换供应商 = 改 .env 三个变量（LLM_BASE_URL / LLM_MODEL / LLM_API_KEY），代码零改动：
     LLM_API_KEY=sk-xxx            # 任一 OpenAI 兼容服务

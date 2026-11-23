@@ -20,11 +20,17 @@ CREATE TABLE IF NOT EXISTS dim_platform (
 );
 
 CREATE TABLE IF NOT EXISTS dim_product (
-    product_id    INTEGER PRIMARY KEY,
-    title_norm    VARCHAR NOT NULL,     -- 归一化标题（小写、去所有格/连字符、压空格）
-    category_raw  VARCHAR NOT NULL,     -- 原始粗粒度类别（dress/pants/...）
-    tag_status    VARCHAR NOT NULL,     -- core | gray_zone | excluded
-    is_gray_zone  BOOLEAN NOT NULL      -- TRUE 仅当 gray_zone（long dress 无 maxi）
+    product_id     INTEGER PRIMARY KEY,
+    title_norm     VARCHAR NOT NULL,    -- 归一化标题（小写、去所有格/连字符、压空格）
+    category_raw   VARCHAR NOT NULL,    -- 原始粗粒度类别（dress/pants/...）
+    tag_status     VARCHAR NOT NULL,    -- core | gray_zone | excluded
+    tag_rule       VARCHAR NOT NULL,    -- 命中规则编号 R1~R6（可解释打标，见 normalize.tag_product）
+    is_gray_zone   BOOLEAN NOT NULL,    -- TRUE 仅当 gray_zone（long dress / 档位冲突）
+    -- 打标粒度是「商品级」、证据在「标题级」：同一 product_id 出现互相矛盾的标题时，
+    -- 只保留首个标题会静默把另一行的销量算进本商品的档位。这两列把冲突显式暴露出来，
+    -- 由 run_dq_checks 的 tag_conflict_detection 告警，不再沉默吞掉。
+    title_variants VARCHAR NOT NULL,    -- 该商品在明细里出现过的全部标题变体（去重、按首次出现排序，最多 5 条）
+    tag_conflict   BOOLEAN NOT NULL     -- TRUE = 同一商品的多条标题判出了不同 tag_status
 );
 
 -- 标题别名表：记录「归一化标题 → 商品」映射，支撑多标题变体（大小写/语序/所有格差异）

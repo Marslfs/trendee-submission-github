@@ -1,0 +1,76 @@
+{
+    "meta": {
+        "start_date": "2024-01-20",
+        "end_date": "2024-01-26",
+        "platforms": [
+            "website"
+        ],
+        "include_gray_zone": false,
+        "agg_coverage": {
+            "rows": 100,
+            "min_date": "2024-01-01",
+            "max_date": "2024-03-13"
+        },
+        "timezone": "Asia/Shanghai",
+        "cached": false,
+        "cache": {
+            "entries": 2,
+            "maxsize": 1024,
+            "ttl": 60
+        },
+        "filled": true
+    },
+    "count": 7,
+    "data": [
+        {
+            "date": "2024-01-20",
+            "total_sales": 17,
+            "records": 1,
+            "by_platform": {
+                "website": 17
+            }
+        },
+        {
+            "date": "2024-01-21",
+            "total_sales": 0,
+            "records": 0,
+            "by_platform": {}
+        },
+        {
+            "date": "2024-01-22",
+            "total_sales": 0,
+            "records": 0,
+            "by_platform": {}
+        },
+        {
+            "date": "2024-01-23",
+            "total_sales": 0,
+            "records": 0,
+            "by_platform": {}
+        },
+        {
+            "date": "2024-01-24",
+            "total_sales": 33,
+            "records": 2,
+            "by_platform": {
+                "website": 33
+            }
+        },
+        {
+            "date": "2024-01-25",
+            "total_sales": 1,
+            "records": 1,
+            "by_platform": {
+                "website": 1
+            }
+        },
+        {
+            "date": "2024-01-26",
+            "total_sales": 16,
+            "records": 1,
+            "by_platform": {
+                "website": 16
+            }
+        }
+    ]
+}

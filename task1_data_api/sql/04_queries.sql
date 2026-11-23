@@ -12,18 +12,24 @@
 --   * 日期过滤用 [start, end] 闭区间，作用于 dt_local::DATE
 -- ============================================================
 
--- Q1 ｜日销量趋势：maxi dress（core），按日分组，可按平台过滤
+-- Q1 ｜日销量趋势：maxi dress（core）主口径 + gray_zone 对照列，按日分组
 --    → API /api/v1/sales/trend 的主查询（读 DWS）
+--    gray_zone 不进主口径，只作为对照列暴露：WHERE 同时纳入 core 与 gray_zone，
+--    一次扫描里 total_sales / records 只累加 core，gray_zone_sales 累加 gray_zone。
+--    （旧版 WHERE 只留 core 又 CASE gray_zone，那一列恒为 0，是一列假指标。）
 SELECT
     a.dt_local                                   AS dt_local,
-    SUM(a.total_sales)                           AS total_sales,
-    SUM(a.record_count)                          AS records,
+    SUM(CASE WHEN a.tag_status = 'core'
+             THEN a.total_sales ELSE 0 END)        AS total_sales,
+    SUM(CASE WHEN a.tag_status = 'core'
+             THEN a.record_count ELSE 0 END)       AS records,
     SUM(CASE WHEN a.tag_status = 'gray_zone'
-             THEN a.total_sales ELSE 0 END)      AS gray_zone_sales
+             THEN a.total_sales ELSE 0 END)        AS gray_zone_sales
 FROM dws_sales_daily a
-WHERE a.tag_status = 'core'
+WHERE a.tag_status IN ('core', 'gray_zone')
   AND a.dt_local BETWEEN DATE '2024-01-01' AND DATE '2024-03-13'
-  AND a.platform IN ('website')                 -- 可选：去掉此行 = 全平台
+  -- 可选平台过滤（如需）：AND a.platform IN ('website')
+  -- 默认全平台：gray_zone 只在 app 平台出现，加 website 会让对照列重新变成 0
 GROUP BY 1
 ORDER BY 1;
 
@@ -66,3 +72,30 @@ WHERE p.tag_status = 'core'
 GROUP BY 1, 2
 ORDER BY total_sales DESC
 LIMIT 10;
+
+-- Q5 ｜日/周环比（MoM/WoW）：7 日滚动合计 + 日环比，全部用窗口函数
+--    【为什么用窗口函数而不是自关联】自关联要对每个日期再扫一次明细（N 次扫描、O(N^2)），
+--    LAG() 与 SUM() OVER (ORDER BY ... ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
+--    在单次有序扫描里同时算出「前一日值 / 日环比 / 7 日滚动」，扫描次数恒为 1。
+--    这也是笔试题「查询优化 / 深入使用数据库」的落点：窗口函数是数据库能力，不是应用层循环。
+WITH daily AS (
+    SELECT a.dt_local,
+           SUM(a.total_sales) AS total_sales
+    FROM dws_sales_daily a
+    WHERE a.tag_status = 'core'
+      AND a.dt_local BETWEEN DATE '2024-01-01' AND DATE '2024-03-13'
+    GROUP BY 1
+),
+lagged AS (
+    SELECT dt_local, total_sales,
+           LAG(total_sales, 1) OVER (ORDER BY dt_local) AS prev_day_sales
+    FROM daily
+)
+SELECT
+    dt_local,
+    total_sales,
+    prev_day_sales,
+    ROUND(100.0 * (total_sales - prev_day_sales) / NULLIF(prev_day_sales, 0), 1) AS dod_pct,
+    SUM(total_sales) OVER (ORDER BY dt_local ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS rolling_7d
+FROM lagged
+ORDER BY 1;

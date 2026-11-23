@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
-"""T2-11 幻觉控制：资料不足检测 → 明确拒答/声明缺口。
+"""T2-8 闸门控制：资料不足检测 → 三态输出（normal / degrade / refuse）。
 
-两层闸门（都在生成之前，省一次 API 调用，也是设计点）：
-1) 检索得分闸门：top1 融合分低于阈值 → 整体拒答（话题与语料不相关，
-   如"客户名单""融资历史"这类 PDF 外问题）。
-2) 覆盖闸门：rerank 后可用来源 < 2 → 视为证据单薄，输出"资料不足"
-   模板并声明缺口，不生成正文。
+判定顺序（都在生成之前，省一次 API 调用；逐层收窄）：
+  ① 无命中                                        → refuse
+  ② 分数闸门：top1 融合分 < SCORE_GATE=0.35      → refuse
+  ③ 覆盖率闸门：主题实词覆盖率
+       cov < DEGRADE_GATE=0.40                    → refuse（硬拒）
+       0.40 <= cov < COVERAGE_GATE=0.60           → degrade（放行但降级声明）
+       cov >= 0.60                                → 进入 ④
+  ④ 来源数兜底：len(hits) < MIN_SOURCES=2         → refuse
+
+真正拦住「客户名单/融资历史」的是第 ③ 层的主题实词覆盖率，不是分数，
+也不是来源数：公司名在语料中高频出现会把融合分抬到 0.65 以上（> 0.35），
+但主题核心词（客户/名单/融资/历史）覆盖率只有 33%，单靠分数闸门拦不住语料外主题。
+COVERAGE_GATE=0.6 在 14 主题集上误拒 2/9，因此不调低阈值过拟合，
+而把 [0.40, 0.60) 做成 degrade 档：既不编造，也不把有证据的主题硬拒
+（混淆矩阵与阈值标定见 docs/eval.md）。
 
 被拒时返回结构化结果而非异常，让上层（demo/CLI）统一渲染。
 """
@@ -14,18 +24,23 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-SCORE_GATE = 0.35   # 融合分归一后 top1 下限（实测相关主题 top1 > 1.0，外主题 < 0.2）
-MIN_SOURCES = 2     # 至少 2 个独立来源支撑一篇文章
-COVERAGE_GATE = 0.6  # 主题实词覆盖率下限：专有名词命中分数可能虚高（如公司名），
-                     # 真正的"资料不足"要看主题核心词是否真的出现在语料里
+# 实测（14 主题，见 docs/eval.md）：语料外主题的分数并不低——客户名单 0.653、
+# 员工数 0.750、退款 0.550、SEO 区别 0.641，都远超 0.35；语料内主题 0.64~1.30。
+# 也就是「单靠分数闸门拦不住语料外主题」，必须靠主题实词覆盖率兜底。
+SCORE_GATE = 0.35     # 融合分归一后 top1 下限（保留原值，不靠调阈值过拟合）
+DEGRADE_GATE = 0.40   # 覆盖率硬拒线：低于此值判定超出语料范围
+COVERAGE_GATE = 0.60  # 正常放行的覆盖率线；[DEGRADE_GATE, COVERAGE_GATE) 走 degrade
+MIN_SOURCES = 2       # 至少 2 个独立来源支撑一篇文章
 ENTITY_WORDS = {"万悉科技", "trendee"}  # 语料主体词，必然命中，不提供证据，排除统计
 
 
 @dataclass
 class GuardResult:
-    allowed: bool
+    allowed: bool                       # 兼容旧调用：normal / degrade 均为 True
     reason: str = ""
     missing: list[str] = field(default_factory=list)
+    mode: str = "normal"                # normal | degrade | refuse
+    coverage: float = 0.0               # 主题实词覆盖率，供上层声明与日志
 
 
 def _topic_coverage(topic: str, hits: list[dict]) -> float:
@@ -58,22 +73,40 @@ def _topic_coverage(topic: str, hits: list[dict]) -> float:
 
 
 def guard(topic: str, hits: list[dict]) -> GuardResult:
+    # ① 无命中
     if not hits:
-        return GuardResult(False, "检索无任何命中：语料库为空或索引未构建", [topic])
+        return GuardResult(
+            False, mode="refuse", coverage=0.0,
+            reason="检索无任何命中：语料库为空或索引未构建", missing=[topic],
+        )
     top = hits[0]
     score = top.get("rerank_score", top.get("score", 0))
     cov = _topic_coverage(topic, hits)
-    if score < SCORE_GATE or cov < COVERAGE_GATE:
+
+    # ② 分数闸门 + ③ 覆盖率硬拒档
+    if score < SCORE_GATE or cov < DEGRADE_GATE:
         return GuardResult(
-            False,
-            f"最相关片段得分 {score}、主题词覆盖率 {cov:.0%}（阈值 {SCORE_GATE} / {COVERAGE_GATE:.0%}）。"
-            f"top 片段：p{top['page']}「{top['section']}」——判定主题超出 PDF 语料范围",
-            [topic],
+            False, mode="refuse", coverage=cov,
+            reason=f"最相关片段得分 {score}、主题词覆盖率 {cov:.0%}"
+                   f"（硬拒阈值 {SCORE_GATE} / {DEGRADE_GATE:.0%}）。"
+                   f"top 片段：p{top['page']}「{top['section']}」——判定主题超出 PDF 语料范围",
+            missing=[topic],
         )
+    # ④ 来源数兜底
     if len(hits) < MIN_SOURCES:
-        return GuardResult(False, f"可用来源仅 {len(hits)} 个（< {MIN_SOURCES}），证据不足以支撑一篇完整文章",
-                           [f"关于「{topic}」的更多资料"])
-    return GuardResult(True)
+        return GuardResult(
+            False, mode="refuse", coverage=cov,
+            reason=f"可用来源仅 {len(hits)} 个（< {MIN_SOURCES}），证据不足以支撑一篇完整文章",
+            missing=[f"关于「{topic}」的更多资料"],
+        )
+    # ③ 降级档：有证据但覆盖不完整，放行并显式声明，不硬拒
+    if cov < COVERAGE_GATE:
+        return GuardResult(
+            True, mode="degrade", coverage=cov,
+            reason=f"主题词覆盖率 {cov:.0%} ∈ [{DEGRADE_GATE:.0%}, {COVERAGE_GATE:.0%})："
+                   f"放行但降级，文章开头须声明覆盖度",
+        )
+    return GuardResult(True, mode="normal", coverage=cov)
 
 
 def refusal_text(topic: str, g: GuardResult) -> str:

@@ -1,6 +1,6 @@
 # Task 1：销售数据查询与 API（DuckDB + FastAPI）
 
-maxi dress 日销量趋势查询服务。数仓分 **DIM / DWD / DWS 三层（刻意不建 ADS）**，关系图与分层理由见 `docs/design.md` §1；大数据量/高并发推演见 `docs/perf.md`。
+maxi dress 日销量趋势查询服务。数仓分 **DIM / DWD / DWS 三层（刻意不建 ADS）**，关系图与分层理由见 `docs/design.md` §1；大数据量/高并发实测（300 万行放大 + EXPLAIN + P50/P95）见 `docs/perf.md`。
 
 ## 快速开始
 
@@ -15,7 +15,7 @@ uvicorn src.api:app --reload
 # 3) 查询示例
 curl "http://127.0.0.1:8000/api/v1/sales/trend?start_date=2024-01-01&end_date=2024-01-31&platforms=website"
 
-# 4) 测试（17 个用例）
+# 4) 测试（56 个用例）
 python -m pytest tests/ -v
 ```
 
@@ -23,7 +23,7 @@ python -m pytest tests/ -v
 
 | 问题 | 答案 |
 |---|---|
-| maxi dress 怎么识别？ | title 归一化后词级三段式：core=maxi∧dress∧¬mini∧¬midi；maxi skirt 类排除；long dress 打灰区标记可开关（`sql/02_dwd_tag.sql` 产出 `dim_product`） |
+| maxi dress 怎么识别？ | title 归一化后词级三段式 R1~R6：R3=maxi∧dress；R1 主档位 mini/midi（**属性词不算档位**，`Midi Length`/`Mini Print` 是修饰语）；R2 maxi skirt 类排除；R4 long dress 打灰区可开关；R6 档位冲突进灰区。规则号落 `dim_product.tag_rule`，SQL/Python 双版 28 条对抗样本零差异 |
 | 重复数据怎么办？ | row_hash 幂等键，摄取前 anti-join；300→288（12 条重复留痕于 dq_report） |
 | 时区？ | 源数据声明为 UTC，dt_local=Asia/Shanghai(+8h)；132 条跨天记录归属随口径变化，聚合一律用 dt_local |
 | 数仓分层？ | DIM（dim_* 维表）/ DWD（dwd_fact_sales 明细）/ DWS（dws_sales_daily 通用汇总）；不建 ADS，理由见 design.md §1.3 |
@@ -34,14 +34,14 @@ python -m pytest tests/ -v
 
 ```
 sql/       01_dwd_schema（DDL）· 02_dwd_tag（ODS→DIM 打标）
-           03_dws_agg（DWD→DWS 汇总）· 04_queries（4 条核心查询）
-src/       normalize · timeutil · ingest · dq_checks(并入ingest) · cache · api
-tests/     pytest 17 用例（归一化/时区/API/缓存/错误分支）
-data/      sales.duckdb（摄取产物，不入 git）
+           03_dws_agg（DWD→DWS 汇总）· 04_queries（5 条核心查询，含窗口函数环比 Q5）
+src/       normalize · timeutil · ingest · run_dq_checks(并入 ingest) · cache · api
+tests/     pytest 56 用例（归一化/时区/API/缓存/错误分支/28 条对抗样本鲁棒性/冲突检测）
+data/      sales.duckdb（已随包提供，可直接启动；重跑 ingest 可幂等重建）
 docs/      design.md（含分层关系图）· perf.md · checklist.md · dq_report.md（质量报告落盘）
            mapping.xlsx（字段映射 / 归一化规则 / 质量报告，三 Sheet）
            layering-er.svg（分层关系图矢量版：表为节点、SQL 为连线）
-examples/  6 个真实响应快照（trend / gray-on / products / healthz / 400 / 422）
+examples/  7 个真实响应快照（trend / gray-on / filled / products / healthz / 400 / 422）
 ```
 
 ## 分层与表的对应
@@ -50,10 +50,12 @@ examples/  6 个真实响应快照（trend / gray-on / products / healthz / 400 
 |---|---|---|---|
 | DIM | `dim_product` / `dim_platform` / `dim_title_alias` | `02_dwd_tag.sql` + `src/ingest.py` | `/api/v1/products`、DWS 聚合 |
 | DWD | `dwd_fact_sales` | `src/ingest.py` | Q4 商品榜、`/healthz`、质量检查 |
-| DWS | `dws_sales_daily` | `03_dws_agg.sql` | `/api/v1/sales/trend`、Q1~Q3 |
+| DWS | `dws_sales_daily` | `03_dws_agg.sql` | `/api/v1/sales/trend`、Q1~Q5 |
 
 ## 实测数字
 
 - 输入 300 行 → 过滤 12 条重复 → 落库 288 行；幂等重跑 inserted=0
-- 商品打标：core 12 / gray_zone 1 / excluded 17（按商品维度）
+- 商品打标：core 12 / gray_zone 1 / excluded 17（按商品维度）；规则命中 R1=4 / R2=1 / R3=12 / R4=1 / R5=12（R6=0）
+- 打标冲突（同商品矛盾标题）0，`dim_product.tag_conflict` + dq `tag_conflict_detection` 兜底
 - 预聚合 111 行（日期 × 平台 × tag）；API 全链路毫秒级
+- 鲁棒性：28 条题面外对抗样本（组合词/复数/斜杠/全角/拼写误差/属性词/型号混入/语义边界）100% 通过，SQL 与 Python 双版零差异（`tests/test_robustness.py`）

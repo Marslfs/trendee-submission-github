@@ -1,0 +1,36 @@
+{"qid": "T01", "type": "topic", "query": "为什么中国出海品牌需要进行 GEO 优化", "pages": [4, 5, 9, 11, 12, 18], "note": "GEO 必要性：LLM 原生 GEO 价值页 + 流量入口 + 深度记忆"}
+{"qid": "T02", "type": "topic", "query": "GEO 和传统 SEO 有什么区别", "pages": [6, 12, 4], "note": "p6 是 LLM 原生 GEO vs 传统 GEO 的对照页"}
+{"qid": "T03", "type": "topic", "query": "AI 搜索为什么是新流量入口", "pages": [9, 10, 11], "note": "AI 重塑搜索 / 电商 / 平台用户增长三页连读"}
+{"qid": "T04", "type": "topic", "query": "GEO 行业有哪些乱象", "pages": [12, 13], "note": "AI 投毒乱象 + 合规 GEO 倡议"}
+{"qid": "T05", "type": "topic", "query": "万悉的合规 GEO 有哪些媒体背书", "pages": [3, 13], "note": "20+ 省央媒报道页与新华网报道页"}
+{"qid": "T06", "type": "topic", "query": "GEO 四大核心技术能力是什么", "pages": [22, 23, 24, 25, 26], "note": "能力总览页 + 2.1~2.4 四个分项"}
+{"qid": "T07", "type": "topic", "query": "问题预测模型怎么训练", "pages": [23, 22], "note": "2.1 问题预测能力页为主"}
+{"qid": "T08", "type": "topic", "query": "GEO 原生网站基建包含什么", "pages": [24, 19], "note": "2.2 站点基建（JSON-LD/知识图谱）+ 技术体系总览"}
+{"qid": "T09", "type": "topic", "query": "GEO 内容优化怎么做", "pages": [25, 19], "note": "2.3 内容优化能力页"}
+{"qid": "T10", "type": "topic", "query": "媒体分发如何选择渠道组合", "pages": [26], "note": "2.4 媒体分发能力页"}
+{"qid": "T11", "type": "topic", "query": "品牌价值蒸馏模型是什么", "pages": [20], "note": "1. 让 AI 记住什么：品牌价值蒸馏模型"}
+{"qid": "T12", "type": "topic", "query": "LLM 生成式引擎的推荐原理", "pages": [21, 5], "note": "推荐原理页 + AI 问答引擎工作原理页"}
+{"qid": "T13", "type": "topic", "query": "GEO 监控系统能看哪些指标", "pages": [27], "note": "可见性/信源/竞品/内容生成六模块"}
+{"qid": "T14", "type": "topic", "query": "Trendee 的技术体系架构", "pages": [19, 28, 27], "note": "技术体系图 + 自研优势 + 监控系统"}
+{"qid": "T15", "type": "topic", "query": "Trendee 相比传统 GEO 服务商的优势", "pages": [28, 4, 6], "note": "独特优势页（技术合规/自研/规模化）"}
+{"qid": "T16", "type": "topic", "query": "创始人的背景", "pages": [2], "note": "创始人 & CEO 简介页"}
+{"qid": "T17", "type": "topic", "query": "万悉服务哪些行业", "pages": [30, 29], "note": "主要服务行业页 + 案例章节页"}
+{"qid": "T18", "type": "topic", "query": "首饰供应商的 GEO 案例", "pages": [31], "note": "头部首饰供应商案例页"}
+{"qid": "T19", "type": "topic", "query": "牛仔服饰 OEM 工厂案例", "pages": [32], "note": "牛仔 OEM 提升询盘案例页"}
+{"qid": "T20", "type": "topic", "query": "母婴奶瓶案例的点击率提升", "pages": [33], "note": "产品详情页 GEO 优化，+27% 点击率"}
+{"qid": "T21", "type": "topic", "query": "新能源公司拓展澳洲市场的案例", "pages": [34], "note": "上市新能源公司澳洲 B 端案例页"}
+{"qid": "T22", "type": "topic", "query": "GEO 服务怎么收费 商业模式", "pages": [35], "note": "按 Token 消耗 / 企业自主配置三种付费形式"}
+{"qid": "T23", "type": "topic", "query": "GEO 对企业的知识基建价值", "pages": [15, 14], "note": "GEO 价值 2 知识基建 + 价值 1 统筹大脑"}
+{"qid": "T24", "type": "topic", "query": "品牌营销的 AI 统筹大脑", "pages": [14], "note": "GEO 价值 1 页"}
+{"qid": "T25", "type": "topic", "query": "什么是 AI 的深度记忆", "pages": [18, 17, 2], "note": "长期记忆区 / 让 AI 记住 / 愿景页"}
+{"qid": "T26", "type": "topic", "query": "AI 时代品牌竞争力怎么建立", "pages": [18, 17], "note": "竞争高地从网页排名转向记忆标签"}
+{"qid": "T27", "type": "topic", "query": "AI 电商的增长数据", "pages": [10], "note": "Shopify 与消费者 AI 购物意愿数据页"}
+{"qid": "T28", "type": "topic", "query": "AI 问答引擎的用户增长速度", "pages": [11, 9], "note": "平台破亿用时对比 + 月活数据"}
+{"qid": "T29", "type": "topic", "query": "结构化数据 JSON-LD 的作用", "pages": [24, 19], "note": "站点基建页明确写了 JSON-LD 与知识图谱"}
+{"qid": "T30", "type": "topic", "query": "如何量化 GEO 效果", "pages": [27, 25], "note": "监控系统指标 + 内容可信信号"}
+{"qid": "V01", "type": "variant", "query": "GEO 到底要不要做", "pages": [4, 9, 12], "note": "口语化变体（I1）"}
+{"qid": "V02", "type": "variant", "query": "generative engine optimization 中国品牌", "pages": [4, 12, 18], "note": "中英混写变体（I1）"}
+{"qid": "V03", "type": "variant", "query": "为啥出海要做GEO", "pages": [4, 9, 18], "note": "口语化+无空格变体（I1）"}
+{"qid": "V04", "type": "variant", "query": "GEO 优化贵吗", "pages": [35, 27], "note": "价格类口语变体（I1）"}
+{"qid": "V05", "type": "variant", "query": "AI搜索会不会取代SEO", "pages": [6, 9, 12], "note": "对比类口语变体（I1，对应 guard degrade 案例）"}
+{"qid": "V06", "type": "variant", "query": "怎么做才能让AI记住我的品牌", "pages": [18, 17, 21], "note": "目标导向变体（I1）"}

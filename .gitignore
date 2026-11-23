@@ -3,13 +3,21 @@ __pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
+.pytest_cache/
 
 # 敏感配置
 .env
 
-# 数据库文件
+# 数据库 / 索引临时产物（默认忽略）
 *.duckdb
 *.duckdb.wal
+*.pkl
+_verify*.duckdb
+test_sales.duckdb
+
+# 下面两项是「开箱可跑」的关键交付物，必须随包保留（反排除）
+!task1_data_api/data/sales.duckdb
+!task2_rag/data/index/*.pkl
 
 # 原始材料中的大文件（5MB+ PDF 不入 git，本地保留）
 data_raw/*.pdf
@@ -19,4 +27,16 @@ data_raw/*.pdf
 .vscode/
 Thumbs.db
 .mapping.ref/
-.book/
+# 方案书排版生成源（build.py / engine.py）保留入库；仅忽略预览图与草稿
+.book/preview-*.png
+.book/v*.png
+
+# 公开化（GitHub）：评分标准 / 自评分复盘类内部文档不入库，本地保留
+*03评分标准.md
+*评分及改进建议.md
+*.rar
+
+# 真实凭证一律不入库（仅 .env.example 入库）
+*.pem
+*.key
+.secrets*

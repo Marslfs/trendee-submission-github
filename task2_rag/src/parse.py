@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import unicodedata
 from pathlib import Path
 
 import pymupdf
@@ -26,15 +27,46 @@ OUT = Path(__file__).resolve().parents[1] / "data" / "pages.jsonl"
 
 TITLE_MIN_SIZE = 20.0  # 字号分布实测：>=20 仅出现在页标题/大数字，12-18 为正文
 
+# 非法字符：替换符 U+FFFD、C0/C1 控制符（保留 \t\n\r）、代理区残字节
+_BAD_REPLACEMENT = "\ufffd"
 
-def parse_page(page: pymupdf.Page) -> dict:
+
+def sanitize(text: str) -> tuple[str, int]:
+    """剔除非法字符并返回 (干净文本, 剔除数)。
+
+    PDF 里可能夹带替换符（\ufffd）或 GBK 残字节（解码成代理区码点）；
+    这些字符会让下游 jieba 分词产生空 token、让引用校验无法比对原句。
+    这里只剔除、不改变合法字符——不做 NFKC，避免把中文全角标点折成半角、
+    进而改变 chunk 长度基线。
+    """
+    kept, dropped = [], 0
+    for ch in text:
+        code = ord(ch)
+        if ch == _BAD_REPLACEMENT:
+            dropped += 1
+            continue
+        if code < 32 and ch not in "\t\n\r":
+            dropped += 1
+            continue
+        if unicodedata.category(ch) in ("Cs", "Cn"):
+            dropped += 1
+            continue
+        kept.append(ch)
+    return "".join(kept), dropped
+
+
+def parse_page(page: pymupdf.Page) -> tuple[dict, int]:
     d = page.get_text("dict")
     lines = []
+    dropped_total = 0
     for block in d["blocks"]:
         if block["type"] != 0:  # 跳过图片块
             continue
         for line in block["lines"]:
-            text = "".join(s["text"] for s in line["spans"]).strip()
+            raw = "".join(s["text"] for s in line["spans"]).strip()
+            text, dropped = sanitize(raw)
+            dropped_total += dropped
+            text = text.strip()
             if not text:
                 continue
             size = max(s["size"] for s in line["spans"])
@@ -70,19 +102,26 @@ def parse_page(page: pymupdf.Page) -> dict:
         "title": title,
         "title_size": title_size,
         "lines": lines,
-    }
+    }, dropped_total
 
 
 def main() -> None:
     doc = pymupdf.open(RAW_PDF)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     n_chars = 0
+    n_dropped = 0
     with OUT.open("w", encoding="utf-8") as f:
         for page in doc:
-            rec = parse_page(page)
+            rec, dropped = parse_page(page)
+            n_dropped += dropped
             n_chars += sum(len(l["text"]) for l in rec["lines"])
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     print(f"parsed {len(doc)} pages -> {OUT.name}, total {n_chars} chars")
+    # 编码兜底的可诊断输出：剔除了多少非法字符必须可见，不能静默
+    if n_dropped:
+        print(f"[warn] dropped {n_dropped} illegal chars (U+FFFD / control / surrogate)")
+    else:
+        print("encoding check: 0 illegal chars (clean corpus)")
 
 
 if __name__ == "__main__":

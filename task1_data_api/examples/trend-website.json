@@ -12,9 +12,9 @@
             "max_date": "2024-03-13"
         },
         "timezone": "Asia/Shanghai",
-        "cached": true,
+        "cached": false,
         "cache": {
-            "entries": 1,
+            "entries": 0,
             "maxsize": 1024,
             "ttl": 60
         }

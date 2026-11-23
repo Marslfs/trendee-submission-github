@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import pickle
 from pathlib import Path
@@ -23,6 +24,7 @@ from rank_bm25 import BM25Okapi
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 INDEX_DIR = DATA / "index"
+META = INDEX_DIR / "meta.json"
 
 # 领域词进词表：防止 jieba 把 "GEO" 切成单字符、把 "品宣" 切散
 DOMAIN_WORDS = [
@@ -41,6 +43,55 @@ def tokenize(text: str) -> list[str]:
     return [t for t in jieba.lcut(text.lower()) if t.strip() and t not in STOPWORDS and not t.isspace()]
 
 
+def fingerprint_of(chunks: list[dict]) -> str:
+    """语料指纹：chunk_id + page + text 的 sha256。
+
+    chunk_id 里含页码（p003-0），所以「PDF 插一页」会让后续所有 chunk_id 平移。
+    指纹变了的含义很明确：**已落盘文章里的 [S3] 可能指向了别的页**。
+    """
+    h = hashlib.sha256()
+    for c in chunks:
+        h.update(f"{c['chunk_id']}|{c['page']}|{c['text']}".encode("utf-8"))
+    return h.hexdigest()
+
+
+def write_meta(chunks: list[dict], index_dir: Path = INDEX_DIR) -> dict:
+    pages = sorted({c["page"] for c in chunks})
+    meta = {
+        "n_chunks": len(chunks),
+        "n_pages": len(pages),
+        "page_min": pages[0] if pages else 0,
+        "page_max": pages[-1] if pages else 0,
+        "sha256": fingerprint_of(chunks),
+    }
+    (index_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return meta
+
+
+def check_freshness(data_dir: Path = DATA, index_dir: Path = INDEX_DIR) -> tuple[bool, str]:
+    """索引与当前语料是否一致（T2-I I2：换语料后引用失效检测）。
+
+    场景：`chunk.py` 重切了 `data/chunks.jsonl`，但忘了重跑 `index.py`——
+    此时检索仍打旧索引，引用编号与页码对不上，且没有任何报错。
+    返回 (ok, message)；调用方负责把 message 打到日志/Demo 上，不静默。
+    """
+    meta_p = index_dir / "meta.json"
+    if not meta_p.exists():
+        return False, "索引缺少 meta.json（旧索引）：无法确认与语料是否一致，请重跑 python -m src.index"
+    meta = json.loads(meta_p.read_text(encoding="utf-8"))
+    corpus_p = data_dir / "chunks.jsonl"
+    if not corpus_p.exists():
+        return False, f"语料文件不存在：{corpus_p}，请先跑 chunk.py"
+    chunks = [json.loads(x) for x in corpus_p.read_text(encoding="utf-8").splitlines() if x.strip()]
+    cur = fingerprint_of(chunks)
+    if cur != meta.get("sha256"):
+        return False, (f"索引与语料不一致：语料 sha={cur[:12]} / 索引 sha={str(meta.get('sha256'))[:12]}，"
+                       f"chunks 已变更但索引未重建——已落盘文章的 [Sn] 可能指向旧页，"
+                       f"请重跑 python -m src.index")
+    return True, (f"索引与语料一致：{meta['n_chunks']} chunks / {meta['n_pages']} 页，"
+                  f"sha={cur[:12]}")
+
+
 def main() -> int:
     chunks = [json.loads(x) for x in (DATA / "chunks.jsonl").read_text(encoding="utf-8").splitlines()]
     corpus = [tokenize(f"{c['section']} {c['text']}") for c in chunks]  # 标题一并进索引
@@ -50,12 +101,14 @@ def main() -> int:
     (INDEX_DIR / "bm25.pkl").write_bytes(pickle.dumps(bm25))
     (INDEX_DIR / "chunks.jsonl").write_text(
         "".join(json.dumps(c, ensure_ascii=False) + "\n" for c in chunks), encoding="utf-8")
+    meta = write_meta(chunks)
 
     # 自检：用一个典型查询验证索引可用
     probe = tokenize("GEO 优化")
     scores = bm25.get_scores(probe)
     top = sorted(range(len(chunks)), key=lambda i: -scores[i])[:3]
     print(f"indexed {len(chunks)} chunks -> {INDEX_DIR}")
+    print(f"fingerprint: {meta['sha256'][:16]} ({meta['n_pages']} 页)")
     print("probe 'GEO 优化' top3:")
     for i in top:
         print(f"  [{chunks[i]['chunk_id']}] {chunks[i]['section'][:24]} (score={scores[i]:.1f})")

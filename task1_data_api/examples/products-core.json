@@ -6,84 +6,120 @@
             "title_norm": "maxi dress floral",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Maxi Dress Floral || maxi dress floral",
+            "tag_conflict": false
         },
         {
             "product_id": 2002,
             "title_norm": "summer maxi dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Summer Maxi Dress || SUMMER MAXI DRESS",
+            "tag_conflict": false
         },
         {
             "product_id": 2003,
             "title_norm": "red maxi dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Red Maxi Dress || Red Maxi-Dress",
+            "tag_conflict": false
         },
         {
             "product_id": 2004,
             "title_norm": "blue maxi dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Blue Maxi Dress || blue maxi  dress",
+            "tag_conflict": false
         },
         {
             "product_id": 2005,
             "title_norm": "floral maxi dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Floral Maxi Dress || Floral long maxi dress",
+            "tag_conflict": false
         },
         {
             "product_id": 2006,
             "title_norm": "black maxi dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Black Maxi Dress",
+            "tag_conflict": false
         },
         {
             "product_id": 2007,
             "title_norm": "formal maxi dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Formal Maxi Dress",
+            "tag_conflict": false
         },
         {
             "product_id": 2008,
             "title_norm": "maxi denim dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Maxi Denim Dress || Denim Maxi Dress",
+            "tag_conflict": false
         },
         {
             "product_id": 2009,
             "title_norm": "long maxi summer dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Long Maxi Summer Dress",
+            "tag_conflict": false
         },
         {
             "product_id": 2010,
             "title_norm": "women s maxi dress floral",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Women's Maxi-Dress Floral || Womens Maxi Dress Floral",
+            "tag_conflict": false
         },
         {
             "product_id": 2011,
             "title_norm": "maxi dress white",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "MAXI DRESS WHITE",
+            "tag_conflict": false
         },
         {
             "product_id": 2012,
             "title_norm": "maxi floral evening dress",
             "category": "dress",
             "tag_status": "core",
-            "is_gray_zone": false
+            "tag_rule": "R3",
+            "is_gray_zone": false,
+            "title_variants": "Maxi Floral Evening Dress",
+            "tag_conflict": false
         }
     ]
 }

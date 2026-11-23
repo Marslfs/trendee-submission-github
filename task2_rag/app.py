@@ -39,21 +39,37 @@ go = st.button("🚀 生成", type="primary", use_container_width=True)
 
 if go:
     if not topic.strip():
-        st.warning("请输入主题")
+        st.warning("主题不能为空：请给出一个可检索的主题（如「为什么中国出海品牌需要 GEO」）")
         st.stop()
 
     with st.spinner("检索 → 重排 → 构建上下文 → 生成 → 引用校验…"):
-        r = run(topic.strip(), genre=genre, top_k=top_k, use_llm_rerank=use_llm_rerank)
+        try:
+            r = run(topic.strip(), genre=genre, top_k=top_k, use_llm_rerank=use_llm_rerank)
+        except ValueError as e:      # 与 CLI 同一套入参规则，报错文案一致
+            st.error(str(e))
+            st.stop()
+
+    # 索引新鲜度：chunks 变了但索引没重建 → 引用可能指错页，必须显式提示
+    idx = r.get("index_check") or {}
+    if idx and not idx.get("ok"):
+        st.warning(f"⚠️ 索引校验未通过：{idx.get('message')}")
 
     # 状态行
     col1, col2, col3 = st.columns(3)
+    gmode = r["guard"].get("mode")
     if r.get("refused"):
         col1.error("🛑 拒答（资料不足）")
+    elif gmode == "degrade":
+        col1.warning("⚠️ 降级生成（覆盖度不足）")
     else:
         mode = r.get("mode", "")
         col1.success("✅ 生成完成" if mode == "generated" else "⚠️ 离线模式（无 Key，仅证据包）")
     col2.metric("来源数", len(r["sources"]))
     col3.metric("引用告警", len(r["cite_warnings"]))
+
+    if gmode == "degrade":
+        st.warning(r.get("degrade_notice")
+                   or "⚠️ 资料覆盖度不足，本文仅基于已检索到的片段，未覆盖部分不作推断。")
 
     if r.get("refused"):
         st.markdown(r["article"])

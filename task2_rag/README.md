@@ -27,11 +27,11 @@ flowchart LR
     D --> E[index<br/>jieba 分词<br/>BM25Okapi]
     E --> F[(data/index/<br/>bm25.pkl)]
     F --> G[retrieve<br/>术语扩展<br/>多路归一融合]
-    G --> H[rerank<br/>启发式 20→6<br/>LLM 重排留接口]
+    G --> H[rerank<br/>启发式 20→6<br/>LLM 重排可用]
     H --> I[context<br/>[S1..S6] 编号<br/>预算句级截断]
-    I --> J{guard<br/>分数+覆盖率<br>双闸门}
-    J -->|资料不足| K[拒答<br/>结构化原因+缺口]
-    J -->|放行| L[generate<br/>OpenAI 兼容<br/>DeepSeek]
+    I --> J{guard<br/>分数+覆盖率<br>三态闸门}
+    J -->|refuse| K[拒答<br/>结构化原因+缺口]
+    J -->|normal / degrade| L[generate<br/>OpenAI 兼容<br/>DeepSeek]
     L --> M[cite_check<br/>句级引用校验<br/>越界删除/降级]
     M --> N[文章+引用卡片]
 ```
@@ -40,17 +40,17 @@ flowchart LR
 
 | 模块 | 行数 | 职责 |
 |---|---|---|
-| `src/parse.py` | 89 | 按页抽文本+字号，页标题=最大字号行（≥20）；**block 级阅读顺序修复多栏 PPT 交错** |
+| `src/parse.py` | 128 | 按页抽文本+字号，页标题=最大字号行（≥20）；**block 级阅读顺序修复多栏 PPT 交错**；`sanitize()` 剔除非法字符并计数（编码兜底） |
 | `src/clean.py` | 128 | 页眉页脚统计剔除、断行合并；按 block 独立成段 |
 | `src/chunk.py` | 97 | 标题感知切分 400/80，段级贪心不切句 |
-| `src/index.py` | 66 | jieba+17 领域词 → BM25Okapi，落盘 `data/index/bm25.pkl` |
+| `src/index.py` | 119 | jieba+23 领域词（GEO/LLM/Trendee/JSON-LD 等）→ BM25Okapi，落盘 `data/index/bm25.pkl`；**写语料指纹 meta.json，`check_freshness()` 检测索引与语料不一致** |
 | `src/retrieve.py` | 90 | 术语扩展表（主题语言→文档语言）+逐路归一融合 |
-| `src/rerank.py` | 63 | 启发式重排 20→6；LLM 重排留接口，无 Key 静默降级 |
+| `src/rerank.py` | 100 | 启发式重排 20→6；`mode="llm"` 真能跑，缺 Key/解析失败/OpenAI 异常均 logger.warning 后降级（不静默吞） |
 | `src/context.py` | 55 | `[S1..Sn]` 编号化+页码，预算 3000 字符句级截断 |
-| `src/guard.py` | 105 | 分数+主题词覆盖率双闸门，资料不足拒答 |
+| `src/guard.py` | 138 | 三态闸门（normal / degrade / refuse）：分数 0.35 + 覆盖率 0.40/0.60 + 来源数兜底 |
 | `src/generate.py` | 59 | OpenAI 兼容接口，指数退避重试，无 Key 离线模式 |
 | `src/cite_check.py` | 75 | 句级引用校验：越界删除、重叠不足降级 |
-| `pipeline.py` | 107 | 全链路 CLI |
+| `pipeline.py` | 162 | 全链路 CLI；`validate_inputs()` 统一空主题/纯符号/top-k 上限校验（CLI 与 Demo 同一套） |
 
 ## 二、Chunk 策略
 
@@ -60,6 +60,23 @@ flowchart LR
 | overlap | 80 字符 | 向前借整段补上下文，不切割句子 |
 | 最小单元 | 段落 | 不按固定 512 字符硬切——硬切会把图表和它的表头切开，检索到半张表比检索不到更糟 |
 | metadata | `page` / `section` / `chunk_id` | page 是引用溯源的最小单元；chunk_id = `p{页号:03d}-{序号}` 稳定可复现 |
+
+### 实测退化说明：400/80 在本语料上实际是「页级 chunk」
+
+`CHUNK_SIZE=400 / OVERLAP=80` 是为长文档准备的参数，**在本语料上基本不生效**：36 页品宣 PPT
+每页正文中位数仅 275 字符，页内段落贪心装块后每页正好 1 块（**40 chunks / 36 页**），
+`size=400` 几乎从不触发切分；`overlap` 只在「块长 < 320 且非首页」时向前借整段，
+在「每页一块」的结构里也不发生。因此**实际效果是页级 chunk**，该参数对单页 >1000 字的长文档才有意义。
+
+复跑：`python scripts/chunk_compare.py`（只读，不改交付索引），把 size 调到 150 重切对比：
+
+| size | chunks | 覆盖页 | 长度 min/median/max | 平均字符 | 示例 query top-5 页码 |
+|---|---|---|---|---|---|
+| 150 | 83 | 36/36 | 17/140/189 | 132.5 | [2, 4, 12, 32, 3] |
+| **400（交付）** | **40** | **36/36** | 17/275/429 | **242.6** | [2, 4, 12, 32, 34] |
+
+切细后引用粒度变细（第 5 个来源从 p34 变成 p3），但上下文连贯性下降；
+40 chunks / 36 页 / 均值 242.6 字符是交付索引的真实基线，**不再声称「400 生效」**。
 
 **为什么不用向量检索（默认关闭，留接口）**：品宣语料充满专有名词与数字（"GEO""LLM 原生""65% 引用率"），BM25 精确匹配更稳；36 页规模毫秒级、零模型零下载。语义召回缺口由 retrieve.py 的术语扩展弥补；有 embedding 时可插入混合检索，架构不动。
 
@@ -123,7 +140,7 @@ flowchart LR
 
 | 层 | 时机 | 机制 | 实测证据 |
 |---|---|---|---|
-| ① 生成前闸门 | 检索后、调用 LLM 前 | guard：融合分 < 0.35 或主题实词覆盖率 < 60% → 拒答。"客户名单/融资历史"类问题因公司名虚高命中会被分数闸门放过，覆盖率闸门（排除实体词+中文前 2 字近似匹配）兜住 | 「客户名单和融资历史」被拒，输出结构化原因+缺口声明 |
+| ① 生成前闸门 | 检索后、调用 LLM 前 | guard 三态：无命中 / 融合分 < 0.35 / 主题实词覆盖率 < 0.40 / 来源 < 2 → `refuse`；覆盖率 [0.40, 0.60) → `degrade`（照常生成但文首声明覆盖度）；≥ 0.60 且来源 ≥ 2 → `normal`。覆盖率排除实体词、中文按前 2 字近似匹配，兜住公司名虚高命中 | 「客户名单和融资历史」被 `refuse` 并输出结构化原因+缺口声明；14 主题混淆矩阵误拒 0 / 误放 0，见 `docs/eval.md` |
 | ② 生成中约束 | Prompt | 铁律 1-4：只用资料内事实、每事实带 [Sn]、禁越界编号、不足即声明 | 2 篇真实生成文章引用规整、0 编造 |
 | ③ 生成后校验 | 文章返回后 | cite_check：句级解析 [Sn]，越界编号删除+告警；词面重叠不足降级删除（逗号级切分避免同句连坐） | 自动拦截并降级了一处宽泛引用（结语 [S2] 与所在句重叠不足） |
 
@@ -142,14 +159,51 @@ flowchart LR
 ## 六、测试
 
 ```bash
-python -m pytest tests/ -q    # 11 passed
+python -m pytest tests/ -q    # 31 passed
 ```
 
-覆盖：chunk 带页码与信息不丢失、假引用（越界/编造内容）拦截、legit 引用保留、预算句级截断、外主题拒答、索引文件存在性与端到端离线运行。
+覆盖：chunk 带页码与信息不丢失、假引用（越界/编造内容）拦截、legit 引用保留、预算句级截断、外主题拒答、索引文件存在性与端到端离线运行；**三态闸门（degrade 声明/refuse）、假 client LLM 重排、T2-I 鲁棒性（空主题/纯符号/top-k 上限/语料指纹插页检测/编码兜底）**。
 
-## 七、已知局限
+## 七、检索质量实测（recall@5 / MRR / nDCG）
 
-- 纯 BM25 检索：同义改写（非术语级）召回弱于向量方案；术语扩展表人工维护
-- rerank 为启发式：无 cross-encoder 语义精排（LLM 重排接口已留，`--llm-rerank`）
-- 语料仅 36 页品宣 PPT：guard 阈值（0.35/0.6）基于本语料实测标定，换语料需重标
+36 条人工标注（30 主题 + 6 口语/中英混写变体，标注单元为页、二值相关）上跑三档配置，一条命令复算：
+
+```bash
+python scripts/eval_retrieval.py      # 标注见 eval/retrieval_eval.jsonl，结果落 docs/retrieval_eval.md
+```
+
+| 配置（全部查询 n=36） | recall@5 | MRR@10 | nDCG@10 |
+|---|---|---|---|
+| BM25 原始 | 0.655 | 0.728 | 0.680 |
+| BM25 + 术语扩展 | 0.623 | 0.684 | 0.637 |
+| + 启发式 rerank | **0.698** | **0.834** | **0.742** |
+
+如实说明两点：① 术语扩展让主题类查询 recall@5 从 0.755 微降到 0.692（通用扩展词拉进长尾页），但把口语变体的 recall@5 从 0.153 提到 0.278；② rerank 把 MRR 从 0.728 提到 0.834，是当前性价比最高的一步。口语变体（如「GEO 到底要不要做」「为啥出海要做GEO」）整体 recall@5 = 0.444，仍是主要短板，标注文件里逐条可查。
+
+## 八、鲁棒性（T2-I）
+
+| 类 | 机制 | 证据 |
+|---|---|---|
+| I1 查询变体 | 术语扩展 + 多路融合 | 6 条变体进同一套标注（§七），`tests/test_t2_robustness.py` 断言变体集存在 |
+| I2 语料变化 | 索引落盘 `meta.json`（chunk 数/页数/语料 sha256），pipeline 与 Demo 启动时 `check_freshness()` 比对；不一致告警"请重建索引"，并把 `index_check` 写进生成产物 | 测试模拟"插一页空白页后 chunk_id 整体平移"，检测命中 |
+| I3 异常输入 | 空主题/纯符号主题/`--top-k` 超 1~50 一律明确报错；`validate_inputs()` 为 CLI 与 app 共用 | `pipeline "？"` → `[error]` 退出码 2；`--top-k 200` → argparse 报错 |
+| I4 编码兜底 | `parse.sanitize()` 剔除 U+FFFD/控制符/代理区残字节并计数告警，不静默丢字符 | 单测覆盖正反例；本语料实测 0 条非法字符 |
+
+## 九、已知局限
+
+- **guard 误拒与三态**：`COVERAGE_GATE=0.6` 在 14 主题集上误拒 2/9（「AI 搜索会不会取代 SEO」40%、「生成式引擎优化和传统 SEO 的区别」50%），因此**不采用「调低阈值」**（会被读成贴着 14 条调参），而把 [0.40, 0.60) 做成 `degrade` 降级档：照常生成但文章开头显式声明覆盖度，既不编造、也不把有证据的主题硬拒。混淆矩阵与阈值标定见 `docs/eval.md`。
+- 纯 BM25 检索：同义改写（非术语级）召回弱于向量方案；**口语变体 recall@5 仅 0.44（见 §七）**；术语扩展表人工维护
+- rerank 默认启发式：无 cross-encoder 语义精排；`--llm-rerank` 的 LLM 分支已修好可用（假 client 单测覆盖），无 Key 或返回异常时带日志降级
+- 语料仅 36 页品宣 PPT：guard 阈值（分数 0.35 / 降级 0.40 / 正常 0.60）基于 14 主题实测标定，换语料需重标
 - 清洗的页眉页脚判定基于重复率统计，本 PDF 无统一页眉页脚（实际剔除 0 行），对有页眉页脚的文档更有效
+
+## 附：四张原理图
+
+`docs/cards/` 下 4 张 PNG 是链路关键机制的速览图，由同目录 `make_*.py` 生成（可重跑、无外部依赖）：
+
+| 图 | 文件 | 讲什么 |
+|---|---|---|
+| Rerank 公式卡 | `docs/cards/rerank_formula_card.png` | 启发式重排的 3 条打分规则、归一与先验平滑公式 |
+| Context 编号卡 | `docs/cards/context_card.png` | `[S1..Sn]` 编号上下文、页码标注与 3000 字符预算裁剪 |
+| Guard 判定卡 | `docs/cards/guard_card.png` | 三态闸门（normal / degrade / refuse）的阈值与判定顺序 |
+| 泛化边界卡 | `docs/cards/generalization_boundary.png` | BM25 + 术语扩展的能力边界与混合检索升级路径 |

@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import duckdb
 import pandas as pd
 
-from .normalize import CORE, EXCLUDED, GRAY_ZONE, normalize_title, row_hash, tag_title
+from .normalize import CORE, EXCLUDED, GRAY_ZONE, normalize_title, row_hash, tag_product, tag_title
 from .timeutil import TZ_NAME_LOCAL, TZ_NAME_UTC, convert
 
 ROOT = Path(__file__).resolve().parent.parent          # task1_data_api/
@@ -41,10 +41,18 @@ def read_seed(xlsx_path: Path) -> pd.DataFrame:
 
 
 def build_rows(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """归一化 + 打标 + 生成 row_hash。返回 (fact_rows, product_rows)。"""
+    """归一化 + 打标 + 生成 row_hash。返回 (fact_rows, product_rows)。
+
+    维表打标粒度是「商品」，证据却在「标题」：同一 product_id 的多条标题可能判出
+    不同 tag_status（如既出现 `Maxi Dress Floral` 又出现 `Midi Dress Blue`）。
+    旧版直接取首行并静默丢弃另一条证据，会让明细行的销量被算进别的档位。
+    这里显式记录 title_variants 与 tag_conflict，交给 dq 告警与 /products 复核。
+    """
     df = df.copy()
     df["title_norm"] = df["title"].map(normalize_title)
-    df["tag_status"] = df["title_norm"].map(tag_title)
+    tagged = df["title_norm"].map(tag_product)          # -> (tag_status, rule_id)
+    df["tag_status"] = tagged.map(lambda x: x[0])
+    df["tag_rule"] = tagged.map(lambda x: x[1])
 
     utc_list, local_list, hash_list = [], [], []
     for rec in df.itertuples(index=False):
@@ -71,13 +79,23 @@ def build_rows(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     df["dt_local"] = local_list
     df["row_hash"] = hash_list
 
-    # 维表：每 product 取首个 title（同商品多标题变体在 dim_title_alias 里体现）
-    product_rows = (
-        df.sort_values("timestamp")
-        .groupby("product_id", as_index=False)
-        .first()[["product_id", "title_norm", "category", "tag_status"]]
-        .assign(is_gray_zone=lambda d: d["tag_status"] == GRAY_ZONE)
-    )
+    # 维表：每 product 取首个 title（同商品多标题变体在 dim_title_alias 里体现），
+    # 同时把「变体」与「变体间档位是否矛盾」两个事实落到维表，供审计与 API 复核。
+    products = []
+    for pid, grp in df.sort_values("timestamp").groupby("product_id", sort=True):
+        head = grp.iloc[0]
+        variants = list(dict.fromkeys(grp["title"].astype(str).tolist()))[:5]
+        products.append({
+            "product_id": int(pid),
+            "title_norm": head["title_norm"],
+            "category": head["category"],
+            "tag_status": head["tag_status"],
+            "tag_rule": head["tag_rule"],
+            "is_gray_zone": head["tag_status"] == GRAY_ZONE,
+            "title_variants": " || ".join(variants),
+            "tag_conflict": bool(grp["tag_status"].nunique() > 1),
+        })
+    product_rows = pd.DataFrame(products)
     return df, product_rows
 
 
@@ -95,9 +113,10 @@ def ingest(xlsx_path: Path, db_path: Path, batch_id: str | None = None) -> dict:
         [(p,) for p in sorted(fact["platform"].unique())],
     )
     con.executemany(
-        "INSERT OR REPLACE INTO dim_product VALUES (?, ?, ?, ?, ?)",
+        "INSERT OR REPLACE INTO dim_product VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
-            (int(r.product_id), r.title_norm, r.category, r.tag_status, bool(r.is_gray_zone))
+            (int(r.product_id), r.title_norm, r.category, r.tag_status,
+             r.tag_rule, bool(r.is_gray_zone), r.title_variants, bool(r.tag_conflict))
             for r in products.itertuples(index=False)
         ],
     )
@@ -129,7 +148,7 @@ def ingest(xlsx_path: Path, db_path: Path, batch_id: str | None = None) -> dict:
             insert_rows,
         )
 
-    # 预聚合（03_agg.sql 自带 DELETE-INSERT 幂等）
+    # 预聚合（03_dws_agg.sql 自带 DELETE-INSERT 幂等）
     con.execute(SQL_AGG.read_text(encoding="utf-8"))
 
     # ---- 数据质量报告（5 条规则）----
@@ -149,6 +168,14 @@ def ingest(xlsx_path: Path, db_path: Path, batch_id: str | None = None) -> dict:
         "excluded_rows": con.execute(
             "SELECT COUNT(*) FROM dim_product WHERE tag_status = 'excluded'"
         ).fetchone()[0],
+        "rule_counts": {
+            r[0]: r[1] for r in con.execute(
+                "SELECT tag_rule, COUNT(*) FROM dim_product GROUP BY 1 ORDER BY 1"
+            ).fetchall()
+        },
+        "tag_conflicts": con.execute(
+            "SELECT COUNT(*) FROM dim_product WHERE tag_conflict"
+        ).fetchone()[0],
         "batch": batch,
     }
     con.close()
@@ -156,7 +183,7 @@ def ingest(xlsx_path: Path, db_path: Path, batch_id: str | None = None) -> dict:
 
 
 def run_dq_checks(con: duckdb.DuckDBPyConnection, fact: pd.DataFrame, batch: str, dup_count: int) -> None:
-    """5 条质量规则，结果落 dq_report 表。"""
+    """6 条质量规则，结果落 dq_report 表。"""
     checks: list[tuple[str, str, str, bool]] = []
 
     # 1) 唯一性：row_hash 全库唯一
@@ -187,12 +214,33 @@ def run_dq_checks(con: duckdb.DuckDBPyConnection, fact: pd.DataFrame, batch: str
     checks.append(("anomaly_sales_range", "warn",
                    f"records with sales_count<=0 or >10000 = {anomalies}", anomalies == 0))
 
-    # 5) 及时性/覆盖：事实表时间跨度闭合声明区间
+    # 5) 及时性/覆盖：事实表时间跨度必须覆盖声明区间 [2024-01-01, 2024-03-13]
+    #    （旧版 passed 硬编码 True 是永真的假检查；这里改成真实判定，
+    #     且 severity 为 info —— 记录事实，不参与 error/warn 门禁）
     lo, hi = con.execute(
         "SELECT MIN(dt_utc), MAX(dt_utc) FROM dwd_fact_sales"
     ).fetchone()
+    declared_lo, declared_hi = date(2024, 1, 1), date(2024, 3, 13)
+    covered = (
+        lo is not None and hi is not None
+        and lo.date() <= declared_lo and hi.date() >= declared_hi
+    )
     checks.append(("timeliness_coverage", "info",
-                   f"dt_utc range: {lo} -> {hi}; input duplicates filtered = {dup_count}", True))
+                   f"dt_utc range: {lo} -> {hi}; declared [{declared_lo}, {declared_hi}] "
+                   f"covered={covered}; input duplicates filtered = {dup_count}; "
+                   f"info 级别，不参与 error/warn 门禁", covered))
+
+    # 6) 打标冲突：同一商品的多条标题判出不同档位时，商品级打标会覆盖另一条证据，
+    #    明细行 JOIN 后销量被算进首条标题的档位——这是「口径污染」，不是普通脏数据。
+    #    这里显式告警（warn），并在 dim_product.tag_conflict 落标识供 API 复核。
+    n_conflict = con.execute(
+        "SELECT COUNT(*) FROM dim_product WHERE tag_conflict"
+    ).fetchone()[0]
+    checks.append(("tag_conflict_detection", "warn",
+                   f"products with conflicting tag_status across title variants = {n_conflict}; "
+                   f"see dim_product.tag_conflict / GET /api/v1/products"
+                   + ("" if n_conflict == 0 else "；请复核这些商品的销量归属"),
+                   n_conflict == 0))
 
     con.executemany(
         "INSERT INTO dq_report VALUES (?, ?, ?, ?, ?, ?)",

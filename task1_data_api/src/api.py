@@ -1,7 +1,7 @@
 """FastAPI：销售趋势查询服务（只读 DWS 层，不建 ADS）。
 
 路由：
-  GET /api/v1/sales/trend   日销量趋势（start/end/platforms/include_gray_zone）→ 打 dws_sales_daily
+  GET /api/v1/sales/trend   日销量趋势（start/end/platforms/include_gray_zone/fill_missing_dates）→ 打 dws_sales_daily
   GET /api/v1/products      商品维表（按 tag 过滤）                        → 打 dim_product
   GET /healthz              存活 + DB 可用性探针                           → 打 dwd_fact_sales
 错误处理：pydantic 校验 422；非法参数组合 400；结果空 200 + meta.count=0；
@@ -66,6 +66,7 @@ def sales_trend(
     end_date: date = Query(..., description="结束日（含）"),
     platforms: str = Query("", description="逗号分隔；空 = 全平台"),
     include_gray_zone: bool = Query(False, description="是否计入 gray_zone（long dress）"),
+    fill_missing_dates: bool = Query(False, description="为 true 时补齐 start..end 每天（无数据补零），meta.filled=true；默认 false 保持旧快照行为"),
 ):
     platforms_list = [p.strip().lower() for p in platforms.split(",") if p.strip()]
     _validate_range(start_date, end_date, platforms_list)
@@ -74,6 +75,7 @@ def sales_trend(
     key = make_key("trend", {
         "s": str(start_date), "e": str(end_date),
         "p": sorted(platforms_list), "g": include_gray_zone,
+        "f": fill_missing_dates,
     })
     if key in _cache:
         hit = _cache[key]
@@ -112,6 +114,17 @@ def sales_trend(
         day["records"] += records
         day["by_platform"][platform] = total
 
+    # C4：可选服务端补零——把 start..end 的每一天都返回（无销售记录的日子补 0），
+    # 避免前端自己按日期补零；默认 false 时保持旧快照行为。
+    if fill_missing_dates:
+        from datetime import timedelta
+        cur = start_date
+        while cur <= end_date:
+            d = str(cur)
+            if d not in by_date:
+                by_date[d] = {"date": d, "total_sales": 0, "records": 0, "by_platform": {}}
+            cur += timedelta(days=1)
+
     body = {
         "meta": {
             "start_date": str(start_date),
@@ -126,6 +139,8 @@ def sales_trend(
         "count": len(by_date),
         "data": sorted(by_date.values(), key=lambda d: d["date"]),
     }
+    if fill_missing_dates:
+        body["meta"]["filled"] = True
     _cache[key] = body
     return body
 
@@ -145,12 +160,14 @@ def products(
     try:
         if tag:
             rows = con.execute(
-                "SELECT product_id, title_norm, category_raw, tag_status, is_gray_zone "
+                "SELECT product_id, title_norm, category_raw, tag_status, tag_rule, is_gray_zone, "
+                "title_variants, tag_conflict "
                 "FROM dim_product WHERE tag_status = ? ORDER BY product_id", [tag]
             ).fetchall()
         else:
             rows = con.execute(
-                "SELECT product_id, title_norm, category_raw, tag_status, is_gray_zone "
+                "SELECT product_id, title_norm, category_raw, tag_status, tag_rule, is_gray_zone, "
+                "title_variants, tag_conflict "
                 "FROM dim_product ORDER BY product_id"
             ).fetchall()
     finally:
@@ -159,7 +176,8 @@ def products(
         "count": len(rows),
         "data": [
             {"product_id": r[0], "title_norm": r[1], "category": r[2],
-             "tag_status": r[3], "is_gray_zone": r[4]}
+             "tag_status": r[3], "tag_rule": r[4], "is_gray_zone": r[5],
+             "title_variants": r[6], "tag_conflict": r[7]}
             for r in rows
         ],
     }

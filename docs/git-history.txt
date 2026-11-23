@@ -1,0 +1,49 @@
+# 提交历史快照（源工程 git log，共 16 个提交）
+# 生成时间：2026-11-23 19:03:20
+# 说明：完整历史见本仓库 commits 页面；此处为随包快照，便于离线查阅。
+
+## git log --oneline
+0dc5b55 2026-11-21 docs: subset fonts, 方案书.pdf 5.4MB -> 130KB
+8d65af3 2026-11-21 docs: add 方案书.pdf (6 pages: summary/Task1/Task2/tradeoffs/limits) + gitignore build scratch
+7dc6ee1 2026-11-21 docs: top-level README rewrite (both tasks complete, quick start, metrics); task1 dir listing sync
+442dce2 2026-11-21 docs(task2): eval report (3 topics, metrics, guard bypass case study, cite intercept log)
+4c3e9d2 2026-11-21 feat(task2): Streamlit demo (topic -> article + citation cards + source fragments), reuses pipeline.run()
+64a6b6d 2026-11-21 docs(task2): README with architecture, chunk params, full prompts, guard chain, eval pointers
+1ff812e 2026-11-21 feat(task2): wire generation (LLM_* env alignment) + real eval outputs
+6940d83 2026-11-21 chore: remove mapping.xlsx build scratch dir, add to gitignore
+d8c5b51 2026-11-21 feat(task2): RAG offline chain (parse->clean->chunk->bm25->retrieve->rerank->context->guard->cite_check)
+44f8b80 2026-11-21 docs(task1): add mapping.xlsx (field mapping / normalization rules / dq report, 3 sheets)
+bb4dc07 2026-11-21 fix(task1): tz-aware binding collapsed dt_utc/dt_local; stale cache stats; add examples + dq report
+c923b5e 2026-11-21 refactor(task1): DIM/DWD/DWS three-layer rename, ER diagram, docs sync
+9bb19a0 2026-11-21 docs(api): document 400/503 responses in OpenAPI schema
+01b0896 2026-11-21 docs(task1): add requirement checklist, mermaid architecture, index rationale; vscode settings
+1e15bda 2026-11-21 feat(task1): DuckDB pipeline, idempotent ingest, trend API, docs (17 tests pass)
+fce1019 2026-11-21 chore: bootstrap assessment env
+
+## 关键提交 bb4dc07 详情
+
+bb4dc07d9cd0166bff7a05557dc14e5be96848c6
+作者：Mars <mars@local>
+日期：2026-11-21 16:44:59 +0800
+
+fix(task1): tz-aware binding collapsed dt_utc/dt_local; stale cache stats; add examples + dq report
+
+- ingest: strip tzinfo before DuckDB binding (binding converts aware dt to session
+  local tz then drops it, collapsing dt_utc/dt_local into one value); row_hash now
+  uses naive UTC isoformat; DB rebuilt fresh (288/111, idempotent rerun inserted=0)
+- api: cache-hit branch re-reads cache_stats() so meta.cache.entries reflects
+  reality instead of the frozen first-build snapshot
+- examples/: 6 real captured responses (trend/gray-on/products/healthz/400/422)
+- docs/dq_report.md: 5 dq rules snapshot + key calibration notes (dup/timezone)
+
+ task1_data_api/docs/dq_report.md           | 50 +++++++++++++++++
+ task1_data_api/examples/README.md          | 18 ++++++
+ task1_data_api/examples/error-400.json     |  3 +
+ task1_data_api/examples/error-422.json     | 13 +++++
+ task1_data_api/examples/healthz.json       |  4 ++
+ task1_data_api/examples/products-core.json | 89 ++++++++++++++++++++++++++++++
+ task1_data_api/examples/trend-gray-on.json | 79 ++++++++++++++++++++++++++
+ task1_data_api/examples/trend-website.json | 57 +++++++++++++++++++
+ task1_data_api/src/api.py                  |  4 +-
+ task1_data_api/src/ingest.py               |  9 ++-
+ 10 files changed, 322 insertions(+), 4 deletions(-)
